@@ -96,31 +96,38 @@ struct DistanceDriving final : Constraint {
 // Solver
 class Solver {
     int m_totalEq = 0;
-    int m_nq = 0; // number of generalized coordinates
-    std::vector<std::unique_ptr<Constraint>> m_constraints;
+    int m_nq = 0; // number of generalized coordinates ?maybe not needed
+
+    const std::vector<std::unique_ptr<Constraint>>& m_constraints;
+    VecXd m_q, m_v, m_a; // generalized coordinates, velocities, accelerations
 
     int m_maxIter = 100;
     double m_tol = 1e-9;
 
+    double step = 0.01; // time step
+
 public:
-    Solver(std::vector<std::unique_ptr<Constraint>> constraints);
+    Solver(const Mechanism& mech);
 
     void setAccuracy(int maxIter, double tol);
 
-    VecXd solvePosition(const VecXd& q0, double time) const;
+    VecXd solvePosition_oneStep(double time) const;
 
-    VecXd solveVelocity(const VecXd& q, const VecXd& v0, double time) const;
+    VecXd solveVelocity_oneStep(double time) const;
 
-    VecXd solveAcceleration(const VecXd& q, const VecXd& v, const VecXd& a0,
-                            double time) const;
+    VecXd solveAcceleration_oneStep(double time) const;
 
-    void solveAll(const VecXd& q0, const VecXd& v0, const VecXd& a0, double time,
-                  VecXd& q, VecXd& v, VecXd& a) const;
+    void solveAll_oneStep(double time);
 
-    static void writeBack(const VecXd& q, const VecXd& v, const VecXd& a,
-                          Mechanism& mech);
+    void setTimeStep(double dt);
 
-    static VecXd extractQ(const Mechanism& mech);
+    VecXd solvePosition(double endTime);
+
+    VecXd solveVelocity(double endTime);
+
+    VecXd solveAcceleration(double endTime);
+
+    void solveAll(double endTime);
 
 private:
     VecXd assembleEval(const VecXd& q, double time) const;

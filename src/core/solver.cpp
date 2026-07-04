@@ -200,9 +200,20 @@ VecXd DistanceDriving::accRHS(const VecXd& q, const VecXd& v, double time) const
 
 // Solver
 
-Solver::Solver(std::vector<std::unique_ptr<Constraint>> constraints) :
-    m_constraints(std::move(constraints)) {
-    for (const auto& constraint : m_constraints) m_totalEq += constraint->eqNum();
+Solver::Solver(const Mechanism& mech) :
+    m_nq(mech.joints.size() * 2), m_constraints(mech.constraints) {
+    m_q.resize(m_nq);
+    m_v.resize(m_nq);
+    m_a.resize(m_nq);
+    for (const auto& joint : mech.joints) {
+        int i = 2 * joint.id;
+        m_q.segment(i, 2) = joint.initialState.position;
+        m_v.segment(i, 2) = joint.initialState.velocity;
+        m_a.segment(i, 2) = joint.initialState.acceleration;
+    }
+
+    for (const auto& constraint : m_constraints)
+        m_totalEq += constraint->eqNum();
 }
 
 void Solver::setAccuracy(int maxIter, double tol) {
@@ -210,8 +221,8 @@ void Solver::setAccuracy(int maxIter, double tol) {
     m_tol = tol;
 }
 
-VecXd Solver::solvePosition(const VecXd& q0, double time) const {
-    VecXd q = q0;
+VecXd Solver::solvePosition_oneStep(double time) const {
+    VecXd q = m_q; // initial guess q0
     bool converged = false;
 
     for (int i = 0; i < m_maxIter; i++) {
@@ -255,6 +266,59 @@ VecXd Solver::solvePosition(const VecXd& q0, double time) const {
     return q;
 }
 
+VecXd Solver::solveVelocity_oneStep(double time) const {
+    MatXd J = assembleJacobian(m_q, time);
+    VecXd Bv = assembleVelRHS(m_q, time);
+    return J.colPivHouseholderQr().solve(Bv);
+}
+
+VecXd Solver::solveAcceleration_oneStep(double time) const {
+    MatXd J = assembleJacobian(m_q, time);
+    VecXd Ba = assembleAccRHS(m_q, m_v, time);
+    return J.colPivHouseholderQr().solve(Ba);
+}
+
+void Solver::solveAll_oneStep(double time) {
+    m_q = solvePosition_oneStep(time);
+    m_v = solveVelocity_oneStep(time);
+    m_a = solveAcceleration_oneStep(time);
+}
+
+void Solver::setTimeStep(double dt) {
+    step = dt;
+}
+
+VecXd Solver::solvePosition(double endTime) {
+    for (double t = step; t <= endTime; t += step)
+        m_q = solvePosition_oneStep(t);
+
+    return m_q;
+}
+
+VecXd Solver::solveVelocity(double endTime) {
+    for (double t = step; t <= endTime; t += step) {
+        m_q = solvePosition_oneStep(t);
+        m_v = solveVelocity_oneStep(t);
+    }
+
+    return m_v;
+}
+
+VecXd Solver::solveAcceleration(double endTime) {
+    for (double t = step; t <= endTime; t += step) {
+        m_q = solvePosition_oneStep(t);
+        m_v = solveVelocity_oneStep(t);
+        m_a = solveAcceleration_oneStep(t);
+    }
+
+    return m_a;
+}
+
+void Solver::solveAll(double endTime) {
+    for (double t = step; t <= endTime; t += step)
+        solveAll_oneStep(t);
+}
+
 VecXd Solver::assembleEval(const VecXd& q, double time) const {
     VecXd F(m_totalEq);
     int row = 0;
@@ -267,7 +331,7 @@ VecXd Solver::assembleEval(const VecXd& q, double time) const {
 }
 
 MatXd Solver::assembleJacobian(const VecXd& q, double time) const {
-    MatXd J(m_totalEq, q.size());
+    MatXd J(m_totalEq, m_nq);
     int row = 0;
     for (const auto& constraint : m_constraints) {
         MatXd j = constraint->jacobian(q, time);
@@ -275,4 +339,26 @@ MatXd Solver::assembleJacobian(const VecXd& q, double time) const {
         row += j.rows();
     }
     return J;
+}
+
+VecXd Solver::assembleVelRHS(const VecXd& q, double time) const {
+    VecXd Bv(m_totalEq);
+    int row = 0;
+    for (const auto& constraint : m_constraints) {
+        VecXd bv = constraint->velRHS(q, time);
+        Bv.segment(row, bv.size()) = bv;
+        row += bv.size();
+    }
+    return Bv;
+}
+
+VecXd Solver::assembleAccRHS(const VecXd& q, const VecXd& v, double time) const {
+    VecXd Ba(m_totalEq);
+    int row = 0;
+    for (const auto& constraint : m_constraints) {
+        VecXd ba = constraint->accRHS(q, v, time);
+        Ba.segment(row, ba.size()) = ba;
+        row += ba.size();
+    }
+    return Ba;
 }

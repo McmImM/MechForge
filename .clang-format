@@ -40,7 +40,7 @@ AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: true
 
 # 允许短的循环保持在同一行
-AllowShortLoopsOnASingleLine: true
+AllowShortLoopsOnASingleLine: false
 
 # 总是在返回类型后换行: None, All, TopLevel(顶级函数，不包括在类中的函数), 
 # AllDefinitions(所有的定义，不包括声明), TopLevelDefinitions(所有的顶级函数的定义)
@@ -57,6 +57,9 @@ BinPackArguments: true
 
 # false表示所有形参要么都在同一行，要么都各自一行
 BinPackParameters: true
+
+# 删除不必要的大括号
+RemoveBracesLLVM: true
 
 # 大括号换行，只有当BreakBeforeBraces设置为Custom时才有效
 BraceWrapping:

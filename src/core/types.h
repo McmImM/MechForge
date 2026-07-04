@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <memory>
 #include <vector>
 #include <functional>
 
@@ -18,7 +19,7 @@ using R1toR1Fn = std::function<double(double)>;
 using R1toR2Fn = std::function<Vec2(double)>;
 
 // Joint
-enum class JointType { None, Revolute, Prismatic };
+enum class JointType { None, Fixed, Revolute, Prismatic };
 
 struct JointState {
     Vec2 position = {0, 0};
@@ -29,8 +30,7 @@ struct JointState {
 struct Joint {
     int id = -1;
     JointType type = JointType::None;
-    JointState state;
-    bool fixed = false;
+    JointState initialState;
 };
 
 // Link
@@ -45,13 +45,7 @@ struct Link {
     int jointA_id = -1;
     int jointB_id = -1;
     double length = 0;
-    LinkState state;
-};
-
-// Mechanism: a complete mechanism description
-struct Mechanism {
-    std::vector<Joint> joints;
-    std::vector<Link> links;
+    LinkState initialState;
 };
 
 // Constraint base
@@ -72,6 +66,13 @@ struct Constraint {
 
     // -∂²F/∂t²-J'q', acceleration RHS
     virtual VecXd accRHS(const VecXd& q, const VecXd& v, double time) const = 0;
+};
+
+// Mechanism: a complete mechanism description
+struct Mechanism {
+    std::vector<Joint> joints;
+    std::vector<Link> links;
+    std::vector<std::unique_ptr<Constraint>> constraints;
 };
 
 // Log

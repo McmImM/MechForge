@@ -17,19 +17,29 @@
  */
 
 int main() {
-    // Build constraints
-    std::vector<std::unique_ptr<Constraint>> constraints;
+    // Build mechanism
+    Mechanism mech;
 
-    {
-        auto c = std::make_unique<FixedConstraint>();
-        c->jointId = 0;
-        c->position = Vec2{0, 0};
-        constraints.push_back(std::move(c));
-    }
+    mech.joints.resize(3);
+    mech.joints[0].id = 0;
+    mech.joints[0].initialState.position = Vec2{0, 0};
+    mech.joints[1].id = 1;
+    mech.joints[1].initialState.position = Vec2{100, 0};
+    mech.joints[2].id = 2;
+    mech.joints[2].initialState.position = Vec2{300, 0};
 
     double crankLen = 100.0;
     double omega = 10.0;
 
+    // Fixed: Joint 0 at (0,0)
+    {
+        auto c = std::make_unique<FixedConstraint>();
+        c->jointId = 0;
+        c->position = Vec2{0, 0};
+        mech.constraints.push_back(std::move(c));
+    }
+
+    // PositionDriving: Joint 1 relative to Joint 0
     {
         auto c = std::make_unique<PositionDriving>();
         c->jointId = 1;
@@ -45,38 +55,36 @@ int main() {
             return {-crankLen * omega * omega * cos(omega * t),
                     -crankLen * omega * omega * sin(omega * t)};
         };
-        constraints.push_back(std::move(c));
+        mech.constraints.push_back(std::move(c));
     }
 
+    // Distance: connecting rod Joint 1 ↔ Joint 2
     {
         auto c = std::make_unique<DistanceConstraint>();
         c->jointAId = 1;
         c->jointBId = 2;
         c->d = 200.0;
-        constraints.push_back(std::move(c));
+        mech.constraints.push_back(std::move(c));
     }
 
+    // Prismatic: Joint 2 on horizontal rail
     {
         auto c = std::make_unique<PrismaticConstraint>();
         c->jointId = 2;
         c->origin = Vec2{0, 0};
         c->direction = Vec2{1, 0};
-        constraints.push_back(std::move(c));
+        mech.constraints.push_back(std::move(c));
     }
 
-    Solver solver(std::move(constraints));
-
-    // Initial guess: q = [x0, y0, x1, y1, x2, y2]
-    VecXd q0(6);
-    q0 << 0, 0, 100, 0, 300, 0;
+    Solver solver(mech);
 
     // Solve at t = 0 to 2π, step 0.05
+    // solvePosition_oneStep uses m_q (from mech.initialState) as initial guess
     int nSteps = int(2 * M_PI / 0.05) + 1;
     printf("t,x_slider,y_slider\n");
-    VecXd q = q0;
     for (int i = 0; i < nSteps; ++i) {
         double t = i * 0.05;
-        q = solver.solvePosition(q, t);
+        VecXd q = solver.solvePosition_oneStep(t);
         printf("%.6f,%.10f,%.10f\n", t, q[4], q[5]);
     }
 
