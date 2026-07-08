@@ -77,7 +77,8 @@ struct Mechanism {
 
 // Log
 struct KinematicsLog {
-    double time;
-    std::vector<JointState> joints;
-    std::vector<LinkState> links;
+    std::vector<double> times = {};
+    std::vector<VecXd> q = {};
+    std::vector<VecXd> v = {};
+    std::vector<VecXd> a = {};
 };

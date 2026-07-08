@@ -12,16 +12,20 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 set(EIGEN_DIR ${CMAKE_SOURCE_DIR}/dependencies/eigen)
+set(JSON_DIR ${CMAKE_SOURCE_DIR}/dependencies/json)
+set(TINYEXPR_DIR ${CMAKE_SOURCE_DIR}/dependencies/tinyexpr)
 
-add_executable(mechforge_cli
-    src/core/solver.h
+add_executable(mechforge_solve
+    src/cli/mechforge_solve.cpp
     src/core/solver.cpp
-    # ... 其他源文件
+    ${TINYEXPR_DIR}/tinyexpr.c
 )
 
-target_include_directories(mechforge_cli PRIVATE
+target_include_directories(mechforge_solve PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${EIGEN_DIR}
+    ${JSON_DIR}
+    ${TINYEXPR_DIR}
 )
 
 add_subdirectory(tests)

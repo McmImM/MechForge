@@ -106,28 +106,26 @@ class Solver {
 
     double step = 0.01; // time step
 
+    bool m_logEnabled = true;                               // log the solver progress
+    mutable std::unique_ptr<KinematicsLog> m_log = nullptr; // log of the kinematics
+
 public:
-    Solver(const Mechanism& mech);
+    Solver(const Mechanism& mech, bool log = true);
 
     void setAccuracy(int maxIter, double tol);
-
-    VecXd solvePosition_oneStep(double time) const;
-
-    VecXd solveVelocity_oneStep(double time) const;
-
-    VecXd solveAcceleration_oneStep(double time) const;
-
+    VecXd solvePosition_oneStep(const VecXd& q0, double time) const;
+    VecXd solveVelocity_oneStep(const VecXd& q, double time) const;
+    VecXd solveAcceleration_oneStep(const VecXd& q, const VecXd& v, double time) const;
     void solveAll_oneStep(double time);
 
     void setTimeStep(double dt);
-
     VecXd solvePosition(double endTime);
-
     VecXd solveVelocity(double endTime);
-
     VecXd solveAcceleration(double endTime);
-
     void solveAll(double endTime);
+
+    const KinematicsLog& getLog();
+    void clearLog();
 
 private:
     VecXd assembleEval(const VecXd& q, double time) const;
