@@ -12,7 +12,7 @@
 |------|------|------|------|
 | `joints` | `Joint[]` | 是 | 关节列表 |
 | `links` | `Link[]` | 否 | 杆件列表 |
-| `constraints` | `Constraint[]` | 是 | 约束列表（含驱动约束） |
+| `drivings` | `Driving[]` | 否 | 驱动约束列表（仅允许写入驱动约束，静态约束由程序自动推导） |
 | `solver` | `SolverConfig` | 否 | 求解器配置 |
 
 ---
@@ -22,7 +22,21 @@
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | `id` | integer | 是 | 关节编号，从 0 开始，不可重复 |
+| `type` | integer | 是 | `0` 表示 `Grounded`, `1` 表示 `Revolute`, `2` 表示 `Prismatic`, `3` 表示 `Free`, 其余表示 `Free` |
+| `groundPos` | `[number, number]` | 否 | 当 `type` 为 `0` 时，必须提供固定点坐标 `[x, y]`，其余情况无需提供 |
+| `slide` | `Slide` | 否 | 当 `type` 为 `2` 时，必须提供滑动约束参数，其余情况无需提供 |
 | `pos` | `[number, number]` | 是 | 初始位置 `[x, y]` |
+| `vel` | `[number, number]` | 否 | 初始速度 `[vx, vy]` |
+| `acc` | `[number, number]` | 否 | 初始加速度 `[ax, ay]` |
+
+#### `Slide`：
+
+| 字段 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `origin` | `[number, number]` | 是 | 直线上一点 `[x, y]` |
+| `direction` | `[number, number]` | 是 | 方向向量 `[dx, dy]`，单位向量更推荐，但不强制 |
+
+
 
 ### `Link`
 
@@ -33,39 +47,17 @@
 | `jointB` | integer | 是 | 另一端关节的 `id` |
 | `length` | number | 是 | 杆长，大于 0 |
 
-### `Constraint`
+### `Driving`
 
-`kind` 区分约束类型：
-
-#### `kind: "fixed"`
-
-| 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
-| `jointId` | integer | 是 | 被固定的关节 `id` |
-| `pos` | `[number, number]` | 是 | 固定位置 `[x, y]` |
-
-#### `kind: "distance"`
-
-| 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
-| `jointA` | integer | 是 | 一端关节 `id` |
-| `jointB` | integer | 是 | 另一端关节 `id` |
-| `length` | number | 是 | 距离，大于 0 |
-
-#### `kind: "prismatic"`
-
-| 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
-| `jointId` | integer | 是 | 被约束的关节 `id` |
-| `origin` | `[number, number]` | 是 | 直线上一点 `[x, y]` |
-| `dir` | `[number, number]` | 是 | 方向向量 `[dx, dy]` |
+`kind` 区分驱动类型：
 
 #### `kind: "position_driving"`
 
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
+| `type` | integer | 是 | `0` 表示 `Position` |
 | `jointId` | integer | 是 | 被驱动的关节 `id` |
-| `relativeTo` | integer | 是 | 参考关节 `id` |
+| `relativeId` | integer | 是 | 参考关节 `id` |
 | `posX` | string | 是 | `x(t)` 表达式 |
 | `posY` | string | 是 | `y(t)` 表达式 |
 | `velX` | string | 是 | `ẋ(t)` 表达式 |
@@ -77,8 +69,9 @@
 
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
+| `type` | integer | 是 | `1` 表示 `Angle` |
 | `jointId` | integer | 是 | 被驱动的关节 `id` |
-| `relativeTo` | integer | 是 | 参考关节 `id` |
+| `relativeId` | integer | 是 | 参考关节 `id` |
 | `theta` | string | 是 | `θ(t)` 表达式 (rad) |
 | `omega` | string | 是 | `ω(t)` 表达式 (rad/s) |
 | `alpha` | string | 是 | `α(t)` 表达式 (rad/s²) |
@@ -87,6 +80,7 @@
 
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
+| `type` | integer | 是 | `2` 表示 `Distance` |
 | `jointA` | integer | 是 | 一端关节 `id` |
 | `jointB` | integer | 是 | 另一端关节 `id` |
 | `distance` | string | 是 | `L(t)` 表达式 |
@@ -99,8 +93,9 @@
 
 | 字段 | 类型 | 必需 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `endTime` | number | 否 | `6.28` | 仿真终止时间 |
+| `endTime` | number | 否 | `-1` | 仿真终止时间. 小于等于 `0` 表示直到无穷; 大于 `0`, 且大于等于 `k * step`, 但小于 `(k+1) * step` 表示求解 `k` 步 |
 | `step` | number | 否 | `0.01` | 时间步长 |
+| `solveLevel` | number | 否 | `0` | `0` 表示位置，`1` 表示速度，`2` 表示加速度 |
 | `maxIter` | integer | 否 | `100` | Newton-Raphson 最大迭代次数 |
 | `tol` | number | 否 | `1e-9` | NR 收敛容差 |
 
@@ -119,7 +114,7 @@
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | `status` | string | 是 | `"ok"` 或 `"error"` |
-| `joints` | `JointResult[]` | 仅成功时 | 各关节最终位置 |
+| `joints` | `JointResult[]` | 仅成功时 | 各关节位置、速度和加速度 |
 | `message` | string | 仅错误时 | 错误描述 |
 
 ### `JointResult`
@@ -127,5 +122,9 @@
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | `id` | integer | 是 | 关节编号 |
-| `x` | number | 是 | 最终 x 坐标 |
-| `y` | number | 是 | 最终 y 坐标 |
+| `x` | number | 是 | x 坐标 |
+| `y` | number | 是 | y 坐标 |
+| `vx` | number | 否 | x 方向速度 |
+| `vy` | number | 否 | y 方向速度 |
+| `ax` | number | 否 | x 方向加速度 |
+| `ay` | number | 否 | y 方向加速度 |

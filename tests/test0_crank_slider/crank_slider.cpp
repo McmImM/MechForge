@@ -10,7 +10,7 @@
  * Joint 2: slider on horizontal rail
  *
  * Constraints:
- *   FixedConstraint(Joint 0, (0,0))
+ *   GroundedConstraint(Joint 0, (0,0))
  *   PositionDriving(Joint 1, relative=Joint 0)   -- crank length 100
  *   DistanceConstraint(Joint 1, Joint 2, 200)     -- connecting rod
  *   PrismaticConstraint(Joint 2, horizontal)
@@ -32,59 +32,43 @@ int main() {
     double omega = 10.0;
 
     // Fixed: Joint 0 at (0,0)
-    {
-        auto c = std::make_unique<FixedConstraint>();
-        c->jointId = 0;
-        c->position = Vec2{0, 0};
-        mech.constraints.push_back(std::move(c));
-    }
+    mech.constraints.push_back(std::make_unique<GroundedConstraint>(0, Vec2{0, 0}));
 
     // PositionDriving: Joint 1 relative to Joint 0
-    {
-        auto c = std::make_unique<PositionDriving>();
-        c->jointId = 1;
-        c->relativeId = 0;
-        c->posFn = [=](double t) -> Vec2 {
+    mech.constraints.push_back(std::make_unique<PositionDriving>(
+        1, 0,
+        [=](double t) -> Vec2 {
             return {crankLen * cos(omega * t), crankLen * sin(omega * t)};
-        };
-        c->velFn = [=](double t) -> Vec2 {
+        },
+        [=](double t) -> Vec2 {
             return {-crankLen * omega * sin(omega * t),
                     crankLen * omega * cos(omega * t)};
-        };
-        c->accFn = [=](double t) -> Vec2 {
+        },
+        [=](double t) -> Vec2 {
             return {-crankLen * omega * omega * cos(omega * t),
                     -crankLen * omega * omega * sin(omega * t)};
-        };
-        mech.constraints.push_back(std::move(c));
-    }
+        }));
 
     // Distance: connecting rod Joint 1 ↔ Joint 2
-    {
-        auto c = std::make_unique<DistanceConstraint>();
-        c->jointAId = 1;
-        c->jointBId = 2;
-        c->d = 200.0;
-        mech.constraints.push_back(std::move(c));
-    }
+    mech.constraints.push_back(std::make_unique<DistanceConstraint>(1, 2, 200.0));
 
     // Prismatic: Joint 2 on horizontal rail
-    {
-        auto c = std::make_unique<PrismaticConstraint>();
-        c->jointId = 2;
-        c->origin = Vec2{0, 0};
-        c->direction = Vec2{1, 0};
-        mech.constraints.push_back(std::move(c));
-    }
+    mech.constraints.push_back(
+        std::make_unique<PrismaticConstraint>(2, Vec2{0, 0}, Vec2{1, 0}));
 
     Solver solver(mech);
 
+    // Build initial guess from mechanism initialState
+    VecXd q(mech.joints.size() * 2);
+    for (const auto& j : mech.joints)
+        q.segment(2 * j.id, 2) = j.initialState.position;
+
     // Solve at t = 0 to 2π, step 0.05
-    // solvePosition_oneStep uses m_q (from mech.initialState) as initial guess
     int nSteps = int(2 * M_PI / 0.05) + 1;
     printf("t,x_slider,y_slider\n");
     for (int i = 0; i < nSteps; ++i) {
         double t = i * 0.05;
-        VecXd q = solver.solvePosition_oneStep(t);
+        q = solver.solvePosition_oneStep(q, t);
         printf("%.6f,%.10f,%.10f\n", t, q[4], q[5]);
     }
 

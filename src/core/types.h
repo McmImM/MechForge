@@ -19,7 +19,7 @@ using R1toR1Fn = std::function<double(double)>;
 using R1toR2Fn = std::function<Vec2(double)>;
 
 // Joint
-enum class JointType { None, Fixed, Revolute, Prismatic };
+enum class JointType { Grounded, Fixed, Revolute, Prismatic, Free };
 
 struct JointState {
     Vec2 position = {0, 0};
@@ -29,7 +29,7 @@ struct JointState {
 
 struct Joint {
     int id = -1;
-    JointType type = JointType::None;
+    JointType type = JointType::Free;
     JointState initialState;
 };
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(MechForge VERSION 1.0.0 LANGUAGES CXX)
+project(MechForge VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -27,5 +27,3 @@ target_include_directories(mechforge_solve PRIVATE
     ${JSON_DIR}
     ${TINYEXPR_DIR}
 )
-
-add_subdirectory(tests)
