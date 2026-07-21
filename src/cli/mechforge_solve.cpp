@@ -295,6 +295,7 @@ int main() {
                               const VecXd& a) {
         json output;
         output["status"] = "ok";
+        output["time"] = time;
         output["joints"] = json::array();
 
         using enum SolveLevel;

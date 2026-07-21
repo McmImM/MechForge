@@ -1,0 +1,14 @@
+name = "JSON input crank-slider"
+description = "CLI solver with JSON input, outputs JSON Lines"
+
+[build]
+command = "cmake --build ../../build --target mechforge_solve"
+
+[run]
+command = "../../build/bin/mechforge_solve"
+stdin = "input.json"
+
+[validate]
+kind = "jsonlines"
+expected = "expected.jsonlines"
+tolerance = 0.01

@@ -1,0 +1,12 @@
+name = "Crank-slider position analysis"
+description = "Standalone crank-slider, outputs CSV with header"
+
+[build]
+command = "cmake --build ../build --target test0_crank_slider"
+
+[run]
+command = "../build/test0_crank_slider"
+
+[validate]
+kind = "txt"
+expected = "expected.csv"

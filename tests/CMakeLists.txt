@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(EIGEN_DIR ${CMAKE_SOURCE_DIR}/../dependencies/eigen)
 
+# Test 0: Crank-slider example
 add_executable(test0_crank_slider
     test0_crank_slider/crank_slider.cpp
     ../src/core/solver.cpp

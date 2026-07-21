@@ -1,0 +1,70 @@
+{
+    "joints": [
+        {
+            "id": 0,
+            "type": 0,
+            "groundPos": [
+                0,
+                0
+            ],
+            "pos": [
+                0,
+                0
+            ]
+        },
+        {
+            "id": 1,
+            "type": 2,
+            "pos": [
+                100,
+                0
+            ]
+        },
+        {
+            "id": 2,
+            "type": 3,
+            "slide": {
+                "origin": [
+                    0,
+                    0
+                ],
+                "direction": [
+                    1,
+                    0
+                ]
+            },
+            "pos": [
+                300,
+                0
+            ]
+        }
+    ],
+    "links": [
+        {
+            "id": 0,
+            "jointA": 1,
+            "jointB": 2,
+            "length": 200
+        }
+    ],
+    "drivings": [
+        {
+            "type": 0,
+            "jointId": 1,
+            "relativeId": 0,
+            "posX": "100*cos(10*t)",
+            "posY": "100*sin(10*t)",
+            "velX": "-1000*sin(10*t)",
+            "velY": "1000*cos(10*t)",
+            "accX": "-10000*cos(10*t)",
+            "accY": "-10000*sin(10*t)"
+        }
+    ],
+    "solverConfig": {
+        "endTime": 6.25,
+        "timeStep": 0.05,
+        "solveLevel": 0,
+        "maxIter": 100,
+        "tol": 1e-9
+    }
+}
