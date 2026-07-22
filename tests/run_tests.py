@@ -16,6 +16,12 @@ TESTS_DIR = Path(__file__).resolve().parent
 
 # Data models
 @dataclass
+class BuildConfig:
+    command: str
+    build_path: Optional[Path] = None  # Directory to run the build command in
+
+
+@dataclass
 class RunConfig:
     command: str
     stdin: Optional[str] = None
@@ -42,7 +48,7 @@ class TestConfig:
     name: str
     cases: list[CaseConfig] = field(default_factory=list)
     description: Optional[str] = None
-    build_command: Optional[str] = None
+    build: Optional[BuildConfig] = None
 
 
 # Load Config
@@ -84,7 +90,7 @@ def load_test_config(tomal_config_path: Path) -> TestConfig:
 
     name = raw.get("name", tomal_config_path.parent.name)
     description = raw.get("description", None)
-    build_command = raw.get("build_command", None)
+    build_config = BuildConfig(**raw["build"]) if "build" in raw else None
 
     cases = []
     if "case" in raw:
@@ -103,7 +109,7 @@ def load_test_config(tomal_config_path: Path) -> TestConfig:
         cases=cases,
         name=name,
         description=description,
-        build_command=build_command,
+        build=build_config,
     )
 
 
@@ -271,16 +277,16 @@ def main():
         if config.description:
             print(f"Description: {config.description}")
 
-        build_command = config.build_command
         for case in config.cases:
             if test_target is not None and case.name not in test_target:
                 continue
 
             case_path = toml_config_path.parent
 
-            if build_command is not None:
+            if config.build is not None:
                 print(f"\nBuilding target: {case.name} ...")
-                build_success = build_target(case_path, build_command)
+                build_path = config.build.build_path or case_path
+                build_success = build_target(build_path, config.build.command)
                 if build_success:
                     print("Build succeeded.")
                     build_command = None  # Only build once for all cases

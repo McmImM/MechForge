@@ -48,6 +48,7 @@ description = "..."              # explanation of what this test does
 
 [build]                          # only if the test needs compilation
 command = "cmake --build build --target my_target"
+build_path = "tests"             # (optional) directory to run build in; defaults to test directory
 
 # ─── Required ──────────────────────────────────
 [run]

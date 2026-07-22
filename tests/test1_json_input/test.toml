@@ -2,7 +2,7 @@ name = "JSON input crank-slider"
 description = "CLI solver with JSON input, outputs JSON Lines"
 
 [build]
-command = "cmake --build ../../build --target mechforge_solve"
+command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mechforge_solve"
 
 [run]
 command = "../../build/bin/mechforge_solve"
