@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/McmImM/MechForge/src/cli/schemas/defs.json",
+    "title": "MechForge Protocol Definitions",
+    "description": "Shared type definitions for the MechForge CLI JSON protocol — including joints, links, driving constraints, solver configuration, and result output types.",
+    "$defs": {
+        "Vec2": {
+            "type": "array",
+            "items": {
+                "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+        },
+        "VecX": {
+            "type": "array",
+            "items": {
+                "type": "number"
+            }
+        }
+    }
+}

@@ -1,0 +1,71 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/MechForge/src/cli/schemas/output-schema.json",
+    "title": "MechForge CLI JSON Output Schema",
+    "description": "Schema for the MechForge CLI JSON output format.",
+    "type": "object",
+    "properties": {
+        "status": {
+            "type": "string",
+            "enum": [
+                "ok",
+                "error"
+            ]
+        }
+    },
+    "required": [
+        "status"
+    ],
+    "oneOf": [
+        {
+            "properties": {
+                "status": {
+                    "const": "ok"
+                },
+                "time": {
+                    "type": "number"
+                },
+                "q": {
+                    "$ref": "defs.json#/$defs/VecX"
+                },
+                "v": {
+                    "$ref": "defs.json#/$defs/VecX"
+                },
+                "a": {
+                    "$ref": "defs.json#/$defs/VecX"
+                }
+            },
+            "required": [
+                "time",
+                "q"
+            ]
+        },
+        {
+            "properties": {
+                "status": {
+                    "const": "ok"
+                },
+                "message": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "message"
+            ]
+        },
+        {
+            "properties": {
+                "status": {
+                    "const": "error"
+                },
+                "message": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "message"
+            ]
+        }
+    ],
+    "unevaluatedProperties": false
+}

@@ -11,9 +11,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-set(EIGEN_DIR ${CMAKE_SOURCE_DIR}/dependencies/eigen)
-set(JSON_DIR ${CMAKE_SOURCE_DIR}/dependencies/json)
-set(TINYEXPR_DIR ${CMAKE_SOURCE_DIR}/dependencies/tinyexpr)
+
+# dependency directories
+set(DEPENDENCIES_DIR ${CMAKE_SOURCE_DIR}/dependencies)
+
+set(EIGEN_DIR ${DEPENDENCIES_DIR}/eigen)
+set(JSON_DIR ${DEPENDENCIES_DIR}/json)
+set(TINYEXPR_DIR ${DEPENDENCIES_DIR}/tinyexpr)
+
 
 add_executable(mechforge_solve
     src/cli/mechforge_solve.cpp

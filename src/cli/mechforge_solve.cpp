@@ -8,6 +8,8 @@
 #include "core/types.h"
 #include "core/solver.h"
 
+using json = nlohmann::json;
+
 namespace {
 
 struct ExprContext {
@@ -51,12 +53,11 @@ std::tuple<R1toR2Fn, int, int> parseR1toR2Fn(const std::string& exprStr1,
     return {f, err1, err2};
 }
 
-int errOutputJson(const std::string& message) {
-    nlohmann::json output;
+void errOutputJson(const std::string& message) {
+    json output;
     output["status"] = "error";
     output["message"] = message;
     std::cout << output << std::endl;
-    return 1;
 }
 
 std::optional<R1toR1Fn> parseR1(const std::string& name, const std::string& expr) {
@@ -86,240 +87,259 @@ std::optional<R1toR2Fn> parseR2(const std::string& nameX, const std::string& exp
 }
 } // namespace
 
-using json = nlohmann::json;
-
 int main() {
-    json input;
-
-    try {
-        std::cin >> input;
-    } catch (const json::parse_error& e) {
-        return errOutputJson(std::string("Failed to parse input JSON")
-                             + std::to_string(e.byte) + ": " + e.what());
-    }
-
     Mechanism mech;
 
-    // extract Joints
-    if (!input.contains("joints"))
-        return errOutputJson("Input JSON must contain 'joints' field.");
-
-    const auto& jointsJson = input["joints"];
-    mech.joints.resize(jointsJson.size());
-    for (const auto& jointJson : jointsJson) {
-        int id = jointJson["id"];
-        Joint& joint = mech.joints[id];
-
-        joint.id = id;
-
-        joint.type = static_cast<JointType>(jointJson["type"].get<int>());
-        switch (joint.type) {
-            using enum JointType;
-        case Grounded:
-            if (jointJson.contains("groundPos")) {
-                mech.constraints.push_back(std::make_unique<GroundedConstraint>(
-                    id, Vec2{jointJson["groundPos"][0].get<double>(),
-                             jointJson["groundPos"][1].get<double>()}));
-            } else
-                return errOutputJson("Grounded joint must have groundPos field.");
-            break;
-        case Fixed: break;
-        case Revolute: break;
-        case Prismatic:
-            if (jointJson.contains("slide")) {
-                const auto& slideJson = jointJson["slide"];
-                Vec2 origin{slideJson["origin"][0].get<double>(),
-                            slideJson["origin"][1].get<double>()};
-                Vec2 dir{slideJson["direction"][0].get<double>(),
-                         slideJson["direction"][1].get<double>()};
-                mech.constraints.push_back(
-                    std::make_unique<PrismaticConstraint>(id, origin, dir));
-            } else
-                return errOutputJson("Prismatic joint must have slide field.");
-            break;
-        case Free: break;
-        default:
-            return errOutputJson("Unknown joint type: "
-                                 + std::to_string(static_cast<int>(joint.type)));
-            break;
+    std::string jsonline;
+    json input;
+    // The parent process should give the input JSON line by line.
+    while (std::getline(std::cin, jsonline)) {
+        try {
+            input = json::parse(jsonline);
+        } catch (const std::exception& e) {
+            errOutputJson("Failed to parse input JSON: " + std::string(e.what()));
+            continue;
         }
 
-        joint.initialState.position =
-            Vec2{jointJson["pos"][0].get<double>(), jointJson["pos"][1].get<double>()};
+        // The input JSON should be gauranteed to be right in the parent process,
+        // so we don't need to check the schema here.
+        std::string cmd = input["cmd"];
+        if (cmd == "build") {
+            const json& mechJson = input["mech"];
 
-        if (jointJson.contains("vel"))
-            joint.initialState.velocity = Vec2{jointJson["vel"][0].get<double>(),
-                                               jointJson["vel"][1].get<double>()};
+            // parse joints
+            const json& jointsJson = mechJson["joints"];
+            mech.joints.resize(jointsJson.size());
+            for (const json& jointJson : jointsJson) {
+                // parse id
+                int id = jointJson["id"];
+                Joint& joint = mech.joints[id];
+                joint.id = id;
 
-        if (jointJson.contains("acc"))
-            joint.initialState.acceleration = Vec2{jointJson["acc"][0].get<double>(),
-                                                   jointJson["acc"][1].get<double>()};
-    }
+                // parse type
+                using enum JointType;
+                std::string type = jointJson["type"];
+                if (type == "Grounded")
+                    joint.type = Grounded;
+                else if (type == "Fixed")
+                    joint.type = Fixed;
+                else if (type == "Revolute")
+                    joint.type = Revolute;
+                else if (type == "Prismatic")
+                    joint.type = Prismatic;
+                else if (type == "Free")
+                    joint.type = Free;
 
-    // extract Links
-    if (input.contains("links")) {
-        const auto& linksJson = input["links"];
-        mech.links.resize(linksJson.size());
-        for (const auto& linkJson : linksJson) {
-            int id = linkJson["id"];
-            Link& link = mech.links[id];
+                switch (joint.type) {
+                case Grounded:
+                    mech.constraints.push_back(std::make_unique<GroundedConstraint>(
+                        id, Vec2{jointJson["groundPos"][0].get<double>(),
+                                 jointJson["groundPos"][1].get<double>()}));
+                    break;
+                case Fixed: break;
+                case Revolute: break;
+                case Prismatic: {
+                    const json& slideJson = jointJson["slide"];
+                    Vec2 origin{slideJson["pos"][0].get<double>(),
+                                slideJson["pos"][1].get<double>()};
+                    Vec2 dir{slideJson["axis"][0].get<double>(),
+                             slideJson["axis"][1].get<double>()};
+                    mech.constraints.push_back(
+                        std::make_unique<PrismaticConstraint>(id, origin, dir));
+                    break;
+                }
+                case Free: break;
+                }
 
-            link.id = id;
-
-            link.jointA_id = linkJson["jointA"].get<int>();
-            link.jointB_id = linkJson["jointB"].get<int>();
-
-            link.length = linkJson["length"].get<double>();
-            mech.constraints.push_back(std::make_unique<DistanceConstraint>(
-                link.jointA_id, link.jointB_id, link.length));
-        }
-    }
-
-    // extract Driving
-    if (input.contains("drivings")) {
-        const auto& drivingsJson = input["drivings"];
-        for (const auto& drivingJson : drivingsJson) {
-            if (!drivingJson.contains("type"))
-                return errOutputJson("Driving must have 'type' field.");
-
-            DrivingType drivingType =
-                static_cast<DrivingType>(drivingJson["type"].get<int>());
-            switch (drivingType) {
-                using enum DrivingType;
-            case Position: {
-                if (!drivingJson.contains("jointId")
-                    || !drivingJson.contains("relativeId")
-                    || !drivingJson.contains("posX") || !drivingJson.contains("posY")
-                    || !drivingJson.contains("velX") || !drivingJson.contains("velY")
-                    || !drivingJson.contains("accX") || !drivingJson.contains("accY"))
-                    return errOutputJson(
-                        "PositionDriving must have 'jointId', 'relativeId', 'posX', "
-                        "'posY', 'velX', 'velY', 'accX', 'accY' fields.");
-
-                int jointId = drivingJson["jointId"].get<int>();
-                int relativeId = drivingJson["relativeId"].get<int>();
-
-                auto posFn =
-                    parseR2("posX", drivingJson["posX"], "posY", drivingJson["posY"]);
-                if (!posFn) return 1;
-                auto velFn =
-                    parseR2("velX", drivingJson["velX"], "velY", drivingJson["velY"]);
-                if (!velFn) return 1;
-                auto accFn =
-                    parseR2("accX", drivingJson["accX"], "accY", drivingJson["accY"]);
-                if (!accFn) return 1;
-
-                mech.constraints.push_back(std::make_unique<PositionDriving>(
-                    jointId, relativeId, *posFn, *velFn, *accFn));
-                break;
+                // parse initial state
+                // parse position
+                joint.initialState.position = Vec2{jointJson["pos"][0].get<double>(),
+                                                   jointJson["pos"][1].get<double>()};
+                // parse velocity
+                if (jointJson.contains("vel"))
+                    joint.initialState.velocity = Vec2{jointJson["vel"][0].get<double>(),
+                                                       jointJson["vel"][1].get<double>()};
+                // parse acceleration
+                if (jointJson.contains("acc"))
+                    joint.initialState.acceleration =
+                        Vec2{jointJson["acc"][0].get<double>(),
+                             jointJson["acc"][1].get<double>()};
             }
 
-            case Angle: {
-                if (!drivingJson.contains("jointId")
-                    || !drivingJson.contains("relativeId")
-                    || !drivingJson.contains("theta") || !drivingJson.contains("omega")
-                    || !drivingJson.contains("alpha"))
-                    return errOutputJson(
-                        "AngleDriving must have 'jointId', 'relativeId', 'theta', "
-                        "'omega', 'alpha', fields.");
+            // parse links
+            if (mechJson.contains("links")) {
+                const json& linksJson = mechJson["links"];
+                mech.links.resize(linksJson.size());
+                for (const json& linkJson : linksJson) {
+                    // parse id
+                    int id = linkJson["id"];
+                    Link& link = mech.links[id];
+                    link.id = id;
 
-                int jointId = drivingJson["jointId"].get<int>();
-                int relativeId = drivingJson["relativeId"].get<int>();
+                    // parse jointA and jointB
+                    link.jointA_id = linkJson["jointA"].get<int>();
+                    link.jointB_id = linkJson["jointB"].get<int>();
 
-                auto theta = parseR1("theta", drivingJson["theta"]);
-                if (!theta) return 1;
-                auto omega = parseR1("omega", drivingJson["omega"]);
-                if (!omega) return 1;
-                auto alpha = parseR1("alpha", drivingJson["alpha"]);
-                if (!alpha) return 1;
-
-                mech.constraints.push_back(std::make_unique<AngleDriving>(
-                    jointId, relativeId, *theta, *omega, *alpha));
-                break;
-            }
-
-            case Distance: {
-                if (!drivingJson.contains("jointAId") || !drivingJson.contains("jointBId")
-                    || !drivingJson.contains("distance") || !drivingJson.contains("vel")
-                    || !drivingJson.contains("acc"))
-                    return errOutputJson("DistanceDriving must have 'jointAId', "
-                                         "'jointBId', 'distance', 'vel', 'acc' fields.");
-
-                int jointAId = drivingJson["jointAId"].get<int>();
-                int jointBId = drivingJson["jointBId"].get<int>();
-
-                auto distance = parseR1("distance", drivingJson["distance"]);
-                if (!distance) return 1;
-                auto vel = parseR1("vel", drivingJson["vel"]);
-                if (!vel) return 1;
-                auto acc = parseR1("acc", drivingJson["acc"]);
-                if (!acc) return 1;
-
-                mech.constraints.push_back(std::make_unique<DistanceDriving>(
-                    jointAId, jointBId, *distance, *vel, *acc));
-                break;
-            }
-
-            default:
-                return errOutputJson("Unknown driving type: "
-                                     + std::to_string(static_cast<int>(drivingType)));
-                break;
-            }
-        }
-    }
-
-    // solve
-    Solver solver(mech);
-
-    double endTime = -1;
-    SolveLevel solveLevel = SolveLevel::Position;
-
-    // extract SolverConfig
-    if (input.contains("solverConfig")) {
-        const auto& solverConfigJson = input["solverConfig"];
-
-        if (solverConfigJson.contains("endTime"))
-            endTime = solverConfigJson["endTime"].get<double>();
-
-        solver.setTimeStep(solverConfigJson.value("timeStep", 0.01));
-
-        solveLevel = static_cast<SolveLevel>(
-            solverConfigJson.value("solveLevel", static_cast<int>(SolveLevel::Position)));
-        solver.setSolveLevel(solveLevel);
-
-        solver.setAccuracy(solverConfigJson.value("maxIter", 100),
-                           solverConfigJson.value("tol", 1e-9));
-    }
-
-    StepCallback onStep = [&](double time, const VecXd& q, const VecXd& v,
-                              const VecXd& a) {
-        json output;
-        output["status"] = "ok";
-        output["time"] = time;
-        output["joints"] = json::array();
-
-        using enum SolveLevel;
-        for (const auto& joint : mech.joints) {
-            int i = 2 * joint.id;
-            json jointJson;
-            jointJson["id"] = joint.id;
-
-            jointJson["x"] = q[i];
-            jointJson["y"] = q[i + 1];
-
-            if (solveLevel >= Velocity) {
-                jointJson["vx"] = v[i];
-                jointJson["vy"] = v[i + 1];
-                if (solveLevel >= Acceleration) {
-                    jointJson["ax"] = a[i];
-                    jointJson["ay"] = a[i + 1];
+                    // parse length
+                    link.length = linkJson["length"].get<double>();
+                    mech.constraints.push_back(std::make_unique<DistanceConstraint>(
+                        link.jointA_id, link.jointB_id, link.length));
                 }
             }
 
-            output["joints"].push_back(jointJson);
-        }
-        std::cout << output << std::endl;
-    };
+            // parse drivings
+            if (mechJson.contains("drivings")) {
+                const json& drivingsJson = mechJson["drivings"];
+                bool drivingFailed = false;
+                for (const json& drivingJson : drivingsJson) {
+                    // parse ids
+                    int jointAId = drivingJson["jointA"].get<int>();
+                    int jointBId = drivingJson["jointB"].get<int>();
 
-    solver.solve(endTime, onStep);
+                    // parse type
+                    using enum DrivingType;
+                    std::string drivingTypeStr = drivingJson["type"];
+                    DrivingType drivingType;
+                    if (drivingTypeStr == "position")
+                        drivingType = Position;
+                    else if (drivingTypeStr == "angle")
+                        drivingType = Angle;
+                    else if (drivingTypeStr == "distance")
+                        drivingType = Distance;
+
+                    switch (drivingType) {
+                    case Position: {
+                        auto pos = parseR2("posX", drivingJson["posX"], "posY",
+                                           drivingJson["posY"]);
+                        if (!pos) {
+                            drivingFailed = true;
+                            break;
+                        }
+                        auto vel = parseR2("velX", drivingJson["velX"], "velY",
+                                           drivingJson["velY"]);
+                        if (!vel) {
+                            drivingFailed = true;
+                            break;
+                        }
+                        auto acc = parseR2("accX", drivingJson["accX"], "accY",
+                                           drivingJson["accY"]);
+                        if (!acc) {
+                            drivingFailed = true;
+                            break;
+                        }
+
+                        mech.constraints.push_back(std::make_unique<PositionDriving>(
+                            jointBId, jointAId, *pos, *vel, *acc));
+                        break;
+                    }
+                    case Angle: {
+                        auto angle = parseR1("angle", drivingJson["theta"]);
+                        if (!angle) {
+                            drivingFailed = true;
+                            break;
+                        }
+                        auto omega = parseR1("omega", drivingJson["omega"]);
+                        if (!omega) {
+                            drivingFailed = true;
+                            break;
+                        }
+                        auto alpha = parseR1("alpha", drivingJson["alpha"]);
+                        if (!alpha) {
+                            drivingFailed = true;
+                            break;
+                        }
+
+                        mech.constraints.push_back(std::make_unique<AngleDriving>(
+                            jointBId, jointAId, *angle, *omega, *alpha));
+                        break;
+                    }
+                    case Distance: {
+                        auto distance = parseR1("distance", drivingJson["distance"]);
+                        if (!distance) {
+                            drivingFailed = true;
+                            break;
+                        }
+                        auto vel = parseR1("vel", drivingJson["vel"]);
+                        if (!vel) {
+                            drivingFailed = true;
+                            break;
+                        }
+                        auto acc = parseR1("acc", drivingJson["acc"]);
+                        if (!acc) {
+                            drivingFailed = true;
+                            break;
+                        }
+
+                        mech.constraints.push_back(std::make_unique<DistanceDriving>(
+                            jointAId, jointBId, *distance, *vel, *acc));
+                        break;
+                    }
+                    }
+                    if (drivingFailed) break;
+                }
+                if (drivingFailed) {
+                    mech = Mechanism{};
+                    errOutputJson("Failed to build the mechanism due to "
+                                  "invalid driving functions.");
+                    continue;
+                }
+            }
+        } else if (cmd == "solve") {
+            if (mech.constraints.empty()) {
+                errOutputJson(
+                    "No constraints in the mechanism. Please build the mechanism first.");
+                continue;
+            }
+
+            const json& solveJson = input["solveConfig"];
+            double endTime = solveJson["endTime"].get<double>();
+            double timeStep = solveJson["timeStep"].get<double>();
+            int maxIter = solveJson["maxIterations"].get<int>();
+            double tol = solveJson["tolerance"].get<double>();
+            std::string solveLevelStr = solveJson["solveLevel"].get<std::string>();
+            using enum SolveLevel;
+            SolveLevel solveLevel;
+            if (solveLevelStr == "pos")
+                solveLevel = Position;
+            else if (solveLevelStr == "vel")
+                solveLevel = Velocity;
+            else if (solveLevelStr == "acc")
+                solveLevel = Acceleration;
+            Solver solver(mech);
+            solver.setTimeStep(timeStep);
+            solver.setAccuracy(maxIter, tol);
+            solver.setSolveLevel(solveLevel);
+            StepCallback onStep = [&](double time, const VecXd& q, const VecXd& v,
+                                      const VecXd& a) {
+                json output;
+                output["status"] = "ok";
+                output["time"] = time;
+
+                using enum SolveLevel;
+                output["q"] = json::array();
+                for (int i = 0; i < q.size(); i++)
+                    output["q"].push_back(q[i]);
+
+                if (solveLevel >= Velocity) {
+                    output["v"] = json::array();
+                    for (int i = 0; i < v.size(); i++)
+                        output["v"].push_back(v[i]);
+                    if (solveLevel >= Acceleration) {
+                        output["a"] = json::array();
+                        for (int i = 0; i < a.size(); i++)
+                            output["a"].push_back(a[i]);
+                    }
+                }
+                std::cout << output << std::endl;
+            };
+            solver.solve(endTime, onStep);
+
+        } else if (cmd == "exit") {
+            json output;
+            output["status"] = "ok";
+            output["message"] = "Exiting.";
+            std::cout << output << std::endl;
+            break;
+        }
+    }
 }

@@ -1,12 +1,15 @@
-name = "JSON input crank-slider"
-description = "CLI solver with JSON input, outputs JSON Lines"
+name = "JSON input crank-slider (REPL protocol)"
+description = "CLI solver with REPL JSON input (build + solve + exit), outputs JSON Lines"
+
 
 [build]
 command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mechforge_solve"
 
+
 [run]
 command = "../../build/bin/mechforge_solve"
-stdin = "input.json"
+stdin = "input.jsonlines"
+
 
 [validate]
 kind = "jsonlines"

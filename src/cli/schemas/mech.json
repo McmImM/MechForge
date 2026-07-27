@@ -1,0 +1,233 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/MechForge/src/cli/schemas/mech.json",
+    "title": "MechForge Mechanism Schema",
+    "description": "Schema for the MechForge mechanism definition.",
+    "type": "object",
+    "properties": {
+        "joints": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Grounded",
+                            "Revolute",
+                            "Prismatic",
+                            "Free"
+                        ]
+                    },
+                    "pos": {
+                        "$ref": "defs.json#/$defs/Vec2"
+                    },
+                    "vel": {
+                        "$ref": "defs.json#/$defs/Vec2"
+                    },
+                    "acc": {
+                        "$ref": "defs.json#/$defs/Vec2"
+                    }
+                },
+                "required": [
+                    "id",
+                    "type",
+                    "pos"
+                ],
+                "oneOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "Grounded"
+                            },
+                            "groundPos": {
+                                "$ref": "defs.json#/$defs/Vec2"
+                            }
+                        },
+                        "required": [
+                            "groundPos"
+                        ]
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "Prismatic"
+                            },
+                            "slide": {
+                                "type": "object",
+                                "properties": {
+                                    "axis": {
+                                        "$ref": "defs.json#/$defs/Vec2"
+                                    },
+                                    "pos": {
+                                        "$ref": "defs.json#/$defs/Vec2"
+                                    }
+                                },
+                                "required": [
+                                    "axis",
+                                    "pos"
+                                ],
+                                "unevaluatedProperties": false
+                            }
+                        },
+                        "required": [
+                            "slide"
+                        ]
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "Revolute",
+                                    "Fixed",
+                                    "Free"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "unevaluatedProperties": false
+            }
+        },
+        "links": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "jointA": {
+                        "type": "integer"
+                    },
+                    "jointB": {
+                        "type": "integer"
+                    },
+                    "length": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                    }
+                },
+                "required": [
+                    "id",
+                    "jointA",
+                    "jointB",
+                    "length"
+                ],
+                "unevaluatedProperties": false
+            }
+        },
+        "drivings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "position",
+                            "angle",
+                            "distance"
+                        ]
+                    },
+                    "jointA": {
+                        "type": "integer"
+                    },
+                    "jointB": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "type",
+                    "jointA",
+                    "jointB"
+                ],
+                "oneOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "position"
+                            },
+                            "posX": {
+                                "type": "string"
+                            },
+                            "posY": {
+                                "type": "string"
+                            },
+                            "velX": {
+                                "type": "string"
+                            },
+                            "velY": {
+                                "type": "string"
+                            },
+                            "accX": {
+                                "type": "string"
+                            },
+                            "accY": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "posX",
+                            "posY",
+                            "velX",
+                            "velY",
+                            "accX",
+                            "accY"
+                        ]
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "angle"
+                            },
+                            "theta": {
+                                "type": "string"
+                            },
+                            "omega": {
+                                "type": "string"
+                            },
+                            "alpha": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "theta",
+                            "omega",
+                            "alpha"
+                        ]
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "distance"
+                            },
+                            "distance": {
+                                "type": "string"
+                            },
+                            "vel": {
+                                "type": "string"
+                            },
+                            "acc": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "distance",
+                            "vel",
+                            "acc"
+                        ]
+                    }
+                ],
+                "unevaluatedProperties": false
+            }
+        }
+    },
+    "required": [
+        "joints"
+    ],
+    "unevaluatedProperties": false
+}

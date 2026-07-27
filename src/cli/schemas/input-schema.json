@@ -1,0 +1,89 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/MechForge/src/cli/schemas/input-schema.json",
+    "title": "MechForge CLI JSON Input Schema",
+    "description": "Schema for the MechForge CLI JSON input format.",
+    "type": "object",
+    "properties": {
+        "cmd": {
+            "type": "string",
+            "enum": [
+                "build",
+                "exit",
+                "solve"
+            ]
+        }
+    },
+    "required": [
+        "cmd"
+    ],
+    "oneOf": [
+        {
+            "properties": {
+                "cmd": {
+                    "const": "build"
+                },
+                "mech": {
+                    "$ref": "mech.json"
+                }
+            },
+            "required": [
+                "mech"
+            ],
+            "unevaluatedProperties": false
+        },
+        {
+            "properties": {
+                "cmd": {
+                    "const": "exit"
+                }
+            },
+            "unevaluatedProperties": false
+        },
+        {
+            "properties": {
+                "cmd": {
+                    "const": "solve"
+                },
+                "solveConfig": {
+                    "type": "object",
+                    "properties": {
+                        "endTime": {
+                            "type": "number",
+                            "default": -1
+                        },
+                        "timeStep": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "default": 0.01
+                        },
+                        "maxIterations": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "default": 100
+                        },
+                        "tolerance": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "default": 1e-9
+                        },
+                        "solveLevel": {
+                            "type": "string",
+                            "enum": [
+                                "pos",
+                                "vel",
+                                "acc"
+                            ],
+                            "default": "pos"
+                        }
+                    },
+                    "unevaluatedProperties": false
+                }
+            },
+            "required": [
+                "solveConfig"
+            ],
+            "unevaluatedProperties": false
+        }
+    ]
+}
