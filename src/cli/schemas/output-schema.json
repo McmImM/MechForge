@@ -9,7 +9,8 @@
             "type": "string",
             "enum": [
                 "ok",
-                "error"
+                "error",
+                "cancelled"
             ]
         }
     },
@@ -65,6 +66,13 @@
             "required": [
                 "message"
             ]
+        },
+        {
+            "properties": {
+                "status": {
+                    "const": "cancelled"
+                }
+            }
         }
     ],
     "unevaluatedProperties": false

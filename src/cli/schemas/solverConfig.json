@@ -1,0 +1,38 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/MechForge/src/cli/schemas/solveConfig.json",
+    "title": "MechForge solveConfig JSON Schema",
+    "description": "Schema for the MechForge solveConfig JSON format.",
+    "type": "object",
+    "properties": {
+        "endTime": {
+            "type": "number",
+            "default": -1
+        },
+        "timeStep": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "default": 0.01
+        },
+        "maxIterations": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "default": 100
+        },
+        "tolerance": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "default": 1e-9
+        },
+        "solveLevel": {
+            "type": "string",
+            "enum": [
+                "pos",
+                "vel",
+                "acc"
+            ],
+            "default": "pos"
+        }
+    },
+    "unevaluatedProperties": false
+}

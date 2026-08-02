@@ -1,5 +1,11 @@
 # build
 build/
 
+# pyenv
+.venv/
+
 # log files
 *.log
+
+# env files
+.envrc

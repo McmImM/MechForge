@@ -17,6 +17,7 @@
                         "type": "string",
                         "enum": [
                             "Grounded",
+                            "Fixed",
                             "Revolute",
                             "Prismatic",
                             "Free"
@@ -128,9 +129,9 @@
                     "type": {
                         "type": "string",
                         "enum": [
-                            "position",
-                            "angle",
-                            "distance"
+                            "Position",
+                            "Angle",
+                            "Distance"
                         ]
                     },
                     "jointA": {
@@ -149,7 +150,7 @@
                     {
                         "properties": {
                             "type": {
-                                "const": "position"
+                                "const": "Position"
                             },
                             "posX": {
                                 "type": "string"
@@ -182,7 +183,7 @@
                     {
                         "properties": {
                             "type": {
-                                "const": "angle"
+                                "const": "Angle"
                             },
                             "theta": {
                                 "type": "string"
@@ -203,7 +204,7 @@
                     {
                         "properties": {
                             "type": {
-                                "const": "distance"
+                                "const": "Distance"
                             },
                             "distance": {
                                 "type": "string"

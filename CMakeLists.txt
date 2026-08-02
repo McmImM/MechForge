@@ -32,3 +32,13 @@ target_include_directories(mechforge_solve PRIVATE
     ${JSON_DIR}
     ${TINYEXPR_DIR}
 )
+
+# Copy the Python CLI script to the output directory
+configure_file(
+    ${CMAKE_SOURCE_DIR}/src/cli/mechforgeCLI.py
+    ${CMAKE_BINARY_DIR}/bin/mechforgeCLI.py
+    COPYONLY
+)
+
+# Copy the schemas directory to the output directory
+file(COPY ${CMAKE_SOURCE_DIR}/src/cli/schemas/ DESTINATION ${CMAKE_BINARY_DIR}/schemas/)

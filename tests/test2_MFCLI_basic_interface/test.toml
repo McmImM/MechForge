@@ -1,0 +1,15 @@
+name = "MFCLI basic interface"
+description = "Python CLI (mechforgeCLI) basic interface: data model, file loading + schema validation, mechanism management, build + solve against the real C++ subprocess"
+
+
+[build]
+command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mechforge_solve"
+
+
+[run]
+command = "python3 test_basic.py"
+
+
+[validate]
+kind = "txt"
+expected = "expected.txt"

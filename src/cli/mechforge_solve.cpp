@@ -1,6 +1,8 @@
 #include <string>
 #include <tuple>
 #include <iostream>
+#include <exception>
+#include <csignal>
 
 #include <tinyexpr.h>
 #include <json.hpp>
@@ -53,11 +55,15 @@ std::tuple<R1toR2Fn, int, int> parseR1toR2Fn(const std::string& exprStr1,
     return {f, err1, err2};
 }
 
-void errOutputJson(const std::string& message) {
+void outputStatusJson(const std::string& status, const std::string& message = "") {
     json output;
-    output["status"] = "error";
-    output["message"] = message;
+    output["status"] = status;
+    if (!message.empty()) output["message"] = message;
     std::cout << output << std::endl;
+}
+
+void errOutputJson(const std::string& message) {
+    outputStatusJson("error", message);
 }
 
 std::optional<R1toR1Fn> parseR1(const std::string& name, const std::string& expr) {
@@ -85,10 +91,26 @@ std::optional<R1toR2Fn> parseR2(const std::string& nameX, const std::string& exp
     }
     return fn;
 }
+
+// Cancel handling
+
+class Cancelled : public std::exception {
+public:
+    const char* what() const noexcept override {
+        return "Cancelled by user.";
+    }
+};
+
+volatile std::sig_atomic_t g_cancelled = 0;
+
+void signalHandler(int signal) {
+    if (signal == SIGINT) g_cancelled = 1;
+}
 } // namespace
 
 int main() {
     Mechanism mech;
+    std::signal(SIGINT, signalHandler);
 
     std::string jsonline;
     json input;
@@ -200,11 +222,11 @@ int main() {
                     using enum DrivingType;
                     std::string drivingTypeStr = drivingJson["type"];
                     DrivingType drivingType;
-                    if (drivingTypeStr == "position")
+                    if (drivingTypeStr == "Position")
                         drivingType = Position;
-                    else if (drivingTypeStr == "angle")
+                    else if (drivingTypeStr == "Angle")
                         drivingType = Angle;
-                    else if (drivingTypeStr == "distance")
+                    else if (drivingTypeStr == "Distance")
                         drivingType = Distance;
 
                     switch (drivingType) {
@@ -279,11 +301,12 @@ int main() {
                 }
                 if (drivingFailed) {
                     mech = Mechanism{};
-                    errOutputJson("Failed to build the mechanism due to "
-                                  "invalid driving functions.");
                     continue;
                 }
             }
+
+            // build succeeded
+            outputStatusJson("ok", "mechanism built");
         } else if (cmd == "solve") {
             if (mech.constraints.empty()) {
                 errOutputJson(
@@ -291,7 +314,10 @@ int main() {
                 continue;
             }
 
-            const json& solveJson = input["solveConfig"];
+            // clear any stale cancel flag from a previous solve
+            g_cancelled = 0;
+
+            const json& solveJson = input["solverConfig"];
             double endTime = solveJson["endTime"].get<double>();
             double timeStep = solveJson["timeStep"].get<double>();
             int maxIter = solveJson["maxIterations"].get<int>();
@@ -311,6 +337,7 @@ int main() {
             solver.setSolveLevel(solveLevel);
             StepCallback onStep = [&](double time, const VecXd& q, const VecXd& v,
                                       const VecXd& a) {
+                if (g_cancelled) throw Cancelled();
                 json output;
                 output["status"] = "ok";
                 output["time"] = time;
@@ -332,14 +359,23 @@ int main() {
                 }
                 std::cout << output << std::endl;
             };
-            solver.solve(endTime, onStep);
+            bool emitDone = false;
+            try {
+                solver.solve(endTime, onStep);
+                emitDone = true;
+            } catch (const Cancelled&) {
+                outputStatusJson("cancelled");
+            } catch (const std::exception& e) {
+                errOutputJson("Solve failed: " + std::string(e.what()));
+            }
 
+            // solve finished (normal completion only)
+            if (emitDone) outputStatusJson("done");
         } else if (cmd == "exit") {
-            json output;
-            output["status"] = "ok";
-            output["message"] = "Exiting.";
-            std::cout << output << std::endl;
+            outputStatusJson("ok", "Exiting.");
             break;
+        } else {
+            errOutputJson("Unknown command: " + cmd);
         }
     }
 }
