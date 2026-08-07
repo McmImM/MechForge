@@ -1,9 +1,9 @@
 name = "MechForge client basic interface"
-description = "Python client (mechforge) basic interface: data model, file loading + schema validation, mechanism management, build + solve against the real C++ subprocess"
+description = "Python client (mf_core) basic interface: data model, file loading + schema validation, mechanism management, build + solve against the real C++ subprocess"
 
 
 [build]
-command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mechforge_solve"
+command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mf_engine"
 
 
 [run]

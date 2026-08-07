@@ -9,12 +9,12 @@ import jsonschema
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
-SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas"
-MECHFORGE_SOLVE = Path(__file__).resolve().parent / "mechforge_solve"
+SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
+MF_ENGINE = Path(__file__).resolve().parent.parent / "bin" / "mf_engine"
 
-# Public API of the mechforge client module.
+# Public API of the mechforge core module.
 __all__ = [
-    "MechForgeClient",
+    "MechForgeCore",
     "Joint",
     "Link",
     "DrivingConstraint",
@@ -62,11 +62,11 @@ class MechForgeError(Exception):
 
 
 class mf_TransportError(MechForgeError):
-    """Raised when there is a transport error between the CLI and mechforge_solve."""
+    """Raised when there is a transport error between the client and mf_engine."""
 
 
 class mf_EngineError(MechForgeError):
-    """Raised when mechforge_solve returns an error."""
+    """Raised when mf_engine returns an error."""
 
 
 class mf_UserError(MechForgeError):
@@ -476,8 +476,8 @@ def _validate_mech_dict(data: dict) -> None:
         ) from error
 
 
-# --- Client ---
-class MechForgeClient:
+# --- Core ---
+class MechForgeCore:
     def __init__(self, mech: Mech | None = None):
         self.mech: Mech
         if mech is None:
@@ -486,7 +486,7 @@ class MechForgeClient:
             self.mech = mech
 
         self._proc = subprocess.Popen(
-            [str(MECHFORGE_SOLVE)],
+            [str(MF_ENGINE)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -494,7 +494,7 @@ class MechForgeClient:
             bufsize=1,
         )
 
-    # communication with mechforge_solve
+    # communication with mf_engine
 
     def _send(self, data: dict):
         if self._proc.stdin is None:

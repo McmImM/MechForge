@@ -1,6 +1,6 @@
 """Test 2: MechForge client basic interface.
 
-Exercises the mechforge Python client against the real C++ solver:
+Exercises the mf_core Python client against the real C++ solver:
 - data model (Joint/Link/DrivingConstraint/Mech) + to_dict/from_dict roundtrip
 - file loading with schema validation (getMechFromFile)
 - mechanism management (add/remove/replace joints, links, drivings)
@@ -16,14 +16,14 @@ import sys
 import tempfile
 from pathlib import Path
 
-# mechforge.py is copied into the CMake build output by configure_file,
-# so SCHEMA_DIR and MECHFORGE_SOLVE resolve correctly from there.
-BUILD_BIN = Path(__file__).resolve().parent.parent.parent / "build" / "bin"
-sys.path.insert(0, str(BUILD_BIN))
+# mf_core.py is copied into the CMake build output by configure_file,
+# so SCHEMA_DIR and MF_ENGINE resolve correctly from there.
+BUILD_LIB = Path(__file__).resolve().parent.parent.parent / "build" / "lib"
+sys.path.insert(0, str(BUILD_LIB))
 
 # The module is found at runtime via sys.path above; the IDE can't see that,
 # so silence its false "import could not be resolved" diagnostic.
-import mechforge as mf  # noqa: E402  # type: ignore[import-not-found]
+import mf_core as mf  # noqa: E402  # type: ignore[import-not-found]
 
 MECH_JSON = Path(__file__).resolve().parent / "mech.json"
 
@@ -70,7 +70,7 @@ def test_joint_validation():
 
 
 def test_get_mech_from_file_and_schema():
-    cli = mf.MechForgeClient()
+    cli = mf.MechForgeCore()
     cli.getMechFromFile(MECH_JSON)
     assert len(cli.mech.joints) == 3
     assert cli.mech.joints[0].id == 0
@@ -91,7 +91,7 @@ def test_get_mech_from_file_and_schema():
 
 
 def test_mechanism_management():
-    cli = mf.MechForgeClient()
+    cli = mf.MechForgeCore()
     assert not cli.mech.ready
 
     j0 = mf.Joint(type=mf.JointType.Grounded, pos=(0.0, 0.0), groundPos=(0.0, 0.0))
@@ -138,7 +138,7 @@ def test_mechanism_management():
 
 
 def test_build_solve():
-    cli = mf.MechForgeClient()
+    cli = mf.MechForgeCore()
     cli.getMechFromFile(MECH_JSON)
 
     steps = list(cli.solve(endTime=0.2, timeStep=0.05))

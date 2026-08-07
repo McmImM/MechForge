@@ -20,32 +20,63 @@ set(JSON_DIR ${DEPENDENCIES_DIR}/json)
 set(TINYEXPR_DIR ${DEPENDENCIES_DIR}/tinyexpr)
 
 
-add_executable(mechforge_solve
-    src/cli/mechforge_solve.cpp
+add_executable(mf_engine
+    src/core/mf_engine.cpp
     src/core/solver.cpp
     ${TINYEXPR_DIR}/tinyexpr.c
 )
 
-target_include_directories(mechforge_solve PRIVATE
+target_include_directories(mf_engine PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${EIGEN_DIR}
     ${JSON_DIR}
     ${TINYEXPR_DIR}
 )
 
-# Copy the Python CLI script to the output directory
-configure_file(
-    ${CMAKE_SOURCE_DIR}/src/cli/mechforge.py
-    ${CMAKE_BINARY_DIR}/bin/mechforge.py
-    COPYONLY
+# --- Python modules: copy (flattened) into build/lib/ -----------------------
+set(MF_PYTHON_MODULES
+    ${CMAKE_SOURCE_DIR}/src/core/mf_core.py
+    ${CMAKE_SOURCE_DIR}/src/cli/mf_commands.py
+    ${CMAKE_SOURCE_DIR}/src/cli/mf_repl.py
+    ${CMAKE_SOURCE_DIR}/src/server/mf_server.py
+    ${CMAKE_SOURCE_DIR}/src/server/mf_remote.py
+    ${CMAKE_SOURCE_DIR}/src/mcp/mf_mcp.py
 )
 
-# Copy the Python REPL script to the output directory
-configure_file(
-    ${CMAKE_SOURCE_DIR}/src/cli/mechforgeREPL.py
-    ${CMAKE_BINARY_DIR}/bin/mechforgeREPL.py
-    COPYONLY
-)
+foreach(mfpy ${MF_PYTHON_MODULES})
+    get_filename_component(mfname ${mfpy} NAME)
+    configure_file(${mfpy} ${CMAKE_BINARY_DIR}/lib/${mfname} COPYONLY)
+endforeach()
 
-# Copy the schemas directory to the output directory
-file(COPY ${CMAKE_SOURCE_DIR}/src/cli/schemas/ DESTINATION ${CMAKE_BINARY_DIR}/schemas/)
+# Copy the schemas directory into build/lib/schemas/
+file(COPY ${CMAKE_SOURCE_DIR}/src/core/schemas/ DESTINATION ${CMAKE_BINARY_DIR}/lib/schemas/)
+
+# --- Thin executable entry scripts in build/bin/ ----------------------------
+# Each entry adds lib/ to sys.path and calls main() in the implementation
+# module. The mf_* modules gain main() during the server/REPL refactor steps.
+file(WRITE ${CMAKE_BINARY_DIR}/bin/mf-repl
+"#!/usr/bin/env python3
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib'))
+from mf_repl import main
+raise SystemExit(main())
+")
+
+file(WRITE ${CMAKE_BINARY_DIR}/bin/mf-server
+"#!/usr/bin/env python3
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib'))
+from mf_server import main
+raise SystemExit(main())
+")
+
+file(WRITE ${CMAKE_BINARY_DIR}/bin/mf-mcp
+"#!/usr/bin/env python3
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib'))
+from mf_mcp import main
+raise SystemExit(main())
+")
