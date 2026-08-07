@@ -5,6 +5,12 @@
     "description": "Schema for the MechForge mechanism definition.",
     "type": "object",
     "properties": {
+        "name": {
+            "type": "string"
+        },
+        "description": {
+            "type": "string"
+        },
         "joints": {
             "type": "array",
             "items": {
@@ -12,6 +18,9 @@
                 "properties": {
                     "id": {
                         "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
                     },
                     "type": {
                         "type": "string",
@@ -101,6 +110,9 @@
                     "id": {
                         "type": "integer"
                     },
+                    "name": {
+                        "type": "string"
+                    },
                     "jointA": {
                         "type": "integer"
                     },
@@ -139,6 +151,9 @@
                     },
                     "jointB": {
                         "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
                     }
                 },
                 "required": [

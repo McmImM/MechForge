@@ -1,8 +1,11 @@
 {
+    "name": "test mechanism",
+    "description": "a crank slider.",
     "joints": [
         {
             "id": 0,
             "type": "Grounded",
+            "name": "ground",
             "pos": [
                 0,
                 0
@@ -15,6 +18,7 @@
         {
             "id": 1,
             "type": "Free",
+            "name": "crank",
             "pos": [
                 100,
                 0
@@ -23,6 +27,7 @@
         {
             "id": 2,
             "type": "Prismatic",
+            "name": "slider",
             "pos": [
                 300,
                 0
@@ -44,7 +49,8 @@
             "id": 0,
             "jointA": 1,
             "jointB": 2,
-            "length": 200
+            "length": 200,
+            "name": "coupler"
         }
     ],
     "drivings": [
@@ -52,6 +58,7 @@
             "type": "Position",
             "jointA": 1,
             "jointB": 0,
+            "name": "crank drive",
             "posX": "100*cos(10*t)",
             "posY": "100*sin(10*t)",
             "velX": "-1000*sin(10*t)",

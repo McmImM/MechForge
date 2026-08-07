@@ -1,5 +1,5 @@
-name = "MFCLI basic interface"
-description = "Python CLI (mechforgeCLI) basic interface: data model, file loading + schema validation, mechanism management, build + solve against the real C++ subprocess"
+name = "MechForge client basic interface"
+description = "Python client (mechforge) basic interface: data model, file loading + schema validation, mechanism management, build + solve against the real C++ subprocess"
 
 
 [build]

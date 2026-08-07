@@ -4,6 +4,9 @@ build/
 # pyenv
 .venv/
 
+# cache
+__pycache__/
+
 # log files
 *.log
 

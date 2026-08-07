@@ -35,8 +35,15 @@ target_include_directories(mechforge_solve PRIVATE
 
 # Copy the Python CLI script to the output directory
 configure_file(
-    ${CMAKE_SOURCE_DIR}/src/cli/mechforgeCLI.py
-    ${CMAKE_BINARY_DIR}/bin/mechforgeCLI.py
+    ${CMAKE_SOURCE_DIR}/src/cli/mechforge.py
+    ${CMAKE_BINARY_DIR}/bin/mechforge.py
+    COPYONLY
+)
+
+# Copy the Python REPL script to the output directory
+configure_file(
+    ${CMAKE_SOURCE_DIR}/src/cli/mechforgeREPL.py
+    ${CMAKE_BINARY_DIR}/bin/mechforgeREPL.py
     COPYONLY
 )
 
