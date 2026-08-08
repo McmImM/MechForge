@@ -1,0 +1,6 @@
+position: type=Position jointA=1 jointB=0 name=driving
+  to_dict={"accX": "0", "accY": "0", "jointA": 1, "jointB": 0, "name": "driving", "posX": "100*cos(10*t)", "posY": "0", "type": "Position", "velX": "0", "velY": "0"}
+angle: type=Angle jointA=1 jointB=0 name=driving
+  to_dict={"alpha": "0", "jointA": 1, "jointB": 0, "name": "driving", "omega": "10", "theta": "10*t", "type": "Angle"}
+distance: type=Distance jointA=1 jointB=0 name=driving
+  to_dict={"acc": "0", "distance": "5", "jointA": 1, "jointB": 0, "name": "driving", "type": "Distance", "vel": "1"}

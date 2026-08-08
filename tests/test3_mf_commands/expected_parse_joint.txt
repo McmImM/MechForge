@@ -1,0 +1,7 @@
+ground: type=Grounded pos=(1.0, 2.0) name=joint
+  ground=(1.0, 2.0)
+fixed: type=Fixed pos=(10.0, 0.0) name=joint
+revolute: type=Revolute pos=(10.0, 0.0) name=joint
+prismatic: type=Prismatic pos=(10.0, 0.0) name=joint
+  slide_axis=(1.0, 0.0) slide_pos=(10.0, 0.0)
+free: type=Free pos=(10.0, 0.0) name=joint

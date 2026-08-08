@@ -1,0 +1,9 @@
+OK added Joint 0 (Grounded)
+OK added Joint 1 (Revolute)
+OK added Joint 2 (Prismatic)
+OK added Link 0 (jointA=1, jointB=2)
+OK added Driving 0 (Angle)
+OK edited Joint 1
+OK edited Driving 0
+OK removed Joint 2
+OK added Joint 2 (Free)

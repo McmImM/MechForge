@@ -1,0 +1,85 @@
+=== show ===
+name: Unnamed Mechanism
+description: No description provided.
+---
+3 joint(s), 1 link(s), 0 driving(s)
+=== show -a ===
+name: Unnamed Mechanism
+description: No description provided.
+---
+Joint 0 joint Grounded   pos=(0.0, 0.0)  ground=(0.0, 0.0)
+Joint 1 joint Revolute   pos=(0.0, 0.0)
+Joint 2 joint Prismatic  pos=(10.0, 0.0)  slide axis=(1.0, 0.0) pos=(10.0, 0.0)
+---
+Link 0 link jointA=1 jointB=2 len=10.0
+---
+3 joint(s), 1 link(s), 0 driving(s)
+=== show -j -l ===
+name: Unnamed Mechanism
+description: No description provided.
+---
+Joint 0 joint Grounded   pos=(0.0, 0.0)  ground=(0.0, 0.0)
+Joint 1 joint Revolute   pos=(0.0, 0.0)
+Joint 2 joint Prismatic  pos=(10.0, 0.0)  slide axis=(1.0, 0.0) pos=(10.0, 0.0)
+---
+Link 0 link jointA=1 jointB=2 len=10.0
+---
+3 joint(s), 1 link(s)
+=== show -a -f json ===
+{
+  "name": "Unnamed Mechanism",
+  "description": "No description provided.",
+  "joints": [
+    {
+      "id": 0,
+      "type": "Grounded",
+      "name": "joint",
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "groundPos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Revolute",
+      "name": "joint",
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Prismatic",
+      "name": "joint",
+      "pos": [
+        10.0,
+        0.0
+      ],
+      "slide": {
+        "axis": [
+          1.0,
+          0.0
+        ],
+        "pos": [
+          10.0,
+          0.0
+        ]
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": 0,
+      "jointA": 1,
+      "jointB": 2,
+      "length": 10.0,
+      "name": "link"
+    }
+  ],
+  "drivings": []
+}

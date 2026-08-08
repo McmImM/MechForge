@@ -90,16 +90,16 @@ name = "Crank-slider tests"
 description = "Same solver, multiple input configurations"
 
 [build]
-command = "cmake --build build --target mechforge_solve"
+command = "cmake --build build --target mf_engine"
 
 [[case]]
 name = "Default config"
-run = { command = "../../build/bin/mechforge_solve", stdin = "input_default.json" }
+run = { command = "../../build/bin/mf_engine", stdin = "input_default.json" }
 validate = { kind = "jsonlines", expected = "expected_default.jsonlines", tolerance = 0.01 }
 
 [[case]]
 name = "High speed"
-run = { command = "../../build/bin/mechforge_solve", stdin = "input_highspeed.json" }
+run = { command = "../../build/bin/mf_engine", stdin = "input_highspeed.json" }
 validate = { kind = "jsonlines", expected = "expected_highspeed.jsonlines", tolerance = 0.05 }
 ```
 

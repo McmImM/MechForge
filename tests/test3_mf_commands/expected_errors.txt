@@ -1,0 +1,7 @@
+ERR | Joint with id 5 not found.
+ERR | unknown joint type: blah
+ERR | Link references non-existent joint(s): 0, 9
+ERR | invalid arguments
+ERR | unknown command: bogus
+ERR | solve is streaming; use run_solve() instead
+ERR | empty command

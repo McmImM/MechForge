@@ -1,0 +1,35 @@
+name = "mf_commands command layer"
+description = "Headless command executor (mf_commands): parsers, run_command CRUD/show/errors, run_solve streaming"
+
+[build]
+command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mf_engine"
+
+[[case]]
+name = "parse_joint"
+run = { command = "python3 run_cases.py parse_joint" }
+validate = { kind = "txt", expected = "expected_parse_joint.txt" }
+
+[[case]]
+name = "parse_driving"
+run = { command = "python3 run_cases.py parse_driving" }
+validate = { kind = "txt", expected = "expected_parse_driving.txt" }
+
+[[case]]
+name = "crud"
+run = { command = "python3 run_cases.py crud" }
+validate = { kind = "txt", expected = "expected_crud.txt" }
+
+[[case]]
+name = "show"
+run = { command = "python3 run_cases.py show" }
+validate = { kind = "txt", expected = "expected_show.txt" }
+
+[[case]]
+name = "errors"
+run = { command = "python3 run_cases.py errors" }
+validate = { kind = "txt", expected = "expected_errors.txt" }
+
+[[case]]
+name = "solve"
+run = { command = "python3 run_cases.py solve" }
+validate = { kind = "txt", expected = "expected_solve.txt" }
