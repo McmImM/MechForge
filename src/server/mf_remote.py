@@ -105,8 +105,9 @@ class RemoteCore:
         """Send a 'solve ...' command; yield each step until the terminal line.
 
         The server streams each step as a JSON line and finishes with a
-        terminal status (done / cancelled / error). Cancelling a remote solve
-        is a later step (the server would stream solve from a worker thread).
+        terminal status (done / cancelled / error). To stop early, call
+        cancel(); the server then replies with the terminal "cancelled" line
+        and this generator raises mf_CancelledError.
         """
         self._f.write((line + "\n").encode())
         self._f.flush()
@@ -123,6 +124,17 @@ class RemoteCore:
             if status == "error":
                 raise mf_EngineError(resp.get("message", "solve failed"))
             yield resp
+
+    def cancel(self) -> None:
+        """Ask the server to cancel the currently running solve.
+
+        The server sets its cancel event (it sends no ack, so nothing pollutes
+        the step stream); the solve worker then replies with the terminal
+        {"status":"cancelled"} line, which solve() turns into
+        mf_CancelledError.
+        """
+        self._f.write(b'{"cmd":"cancel"}\n')
+        self._f.flush()
 
     def close(self) -> None:
         self._f.close()

@@ -82,6 +82,23 @@ class MechForgeREPL(cmd2.Cmd):
         else:
             self.perror(result.error or "command failed")
 
+    def sigint_handler(self, signum, frame):
+        """Ctrl-C during a remote solve: cancel on the server, don't raise.
+
+        cmd2 registers this as the SIGINT handler and its default turns the
+        signal into KeyboardInterrupt, which would just abort this client's
+        read loop while the server keeps solving. For a RemoteCore we instead
+        tell the server to cancel and skip the default (so no KeyboardInterrupt
+        is raised); RemoteCore.solve() then sees the server's "cancelled" line
+        and raises mf_CancelledError, which do_solve prints.
+        """
+        if isinstance(self.client, RemoteCore):
+            cur = self.current_command
+            if cur is not None and cur.command == "solve":
+                self.client.cancel()
+                return  # skip the default raise; the "cancelled" line follows
+        super().sigint_handler(signum, frame)
+
     # --- clear screen (presentation-only; not part of mf_commands) -------
     def do_clear(self, args):
         """Clear the terminal screen"""
