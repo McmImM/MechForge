@@ -24,6 +24,23 @@ Each `tests/testX_xxx/` directory contains a `test.toml` that describes:
 
 `run_tests.py` discovers all `test.toml` files, runs them, and prints a pass/fail summary.
 
+## Output Logs
+
+Every case's stdout is saved to its **own** log file, so a later case never
+overwrites an earlier one. The default name is `output_<case>.log` (spaces in
+the name become underscores); override it with the `log` key:
+
+```toml
+[[case]]
+name = "server_basics"
+run = { command = "python3 run_cases.py server_basics" }
+validate = { kind = "txt", expected = "expected_server_basics.txt" }
+log = "custom_name.log"          # optional; default is output_<case>.log
+```
+
+For a single-case test (no `[[case]]`), the default is `output_<testname>.log`,
+overridable with a top-level `log` key next to `[run]` / `[validate]`.
+
 ## Expected Files
 
 The expected file format should **match the test output format** to avoid unnecessary conversions. Supported formats include:
@@ -45,6 +62,7 @@ Most tests only need `[run]` + `[validate]` — no `[[case]]` needed:
 # ─── Optional ──────────────────────────────────
 name = "Short test name"         # human label; defaults to directory name
 description = "..."              # explanation of what this test does
+log = "custom_name.log"          # log filename; default output_<testname>.log
 
 [build]                          # only if the test needs compilation
 command = "cmake --build build --target my_target"
@@ -104,6 +122,8 @@ validate = { kind = "jsonlines", expected = "expected_highspeed.jsonlines", tole
 ```
 
 `run_tests.py` iterates over all `[[case]]` entries and runs/validates each one.
+Each `[[case]]` may also set `log = "..."` for its own output log filename
+(default `output_<case>.log`; see [Output Logs](#output-logs)).
 
 ## Adding a New Test
 

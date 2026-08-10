@@ -1,0 +1,4 @@
+client1 jointAdd: ok=True
+client2 sees joints: 1
+client2 jointAdd: ok=True
+client1 sees joints after client2 add: 2

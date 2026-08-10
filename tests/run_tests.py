@@ -41,6 +41,7 @@ class CaseConfig:
     name: str
     run: RunConfig
     validate: ValidateConfig
+    log: str = "output.log"  # per-case output log filename (default: auto)
 
 
 @dataclass
@@ -96,14 +97,18 @@ def load_test_config(tomal_config_path: Path) -> TestConfig:
     if "case" in raw:
         for i, case in enumerate(raw["case"]):
             case_name = name + "-" + case.get("name", f"case{i}")
+            short = case.get("name", f"case{i}")
+            # One log file per case: default output_<case>.log, override via [[case]] log =
+            log = case.get("log") or f"output_{short.replace(' ', '_')}.log"
             run = RunConfig(**case["run"])
             validate = load_validate_config(case["validate"])
-            cases.append(CaseConfig(name=case_name, run=run, validate=validate))
+            cases.append(CaseConfig(name=case_name, run=run, validate=validate, log=log))
     else:
         case_name = name
         run = RunConfig(**raw["run"])
         validate = load_validate_config(raw["validate"])
-        cases.append(CaseConfig(name=case_name, run=run, validate=validate))
+        log = raw.get("log") or f"output_{name.replace(' ', '_')}.log"
+        cases.append(CaseConfig(name=case_name, run=run, validate=validate, log=log))
 
     return TestConfig(
         cases=cases,
@@ -154,7 +159,7 @@ def run_case(
         )
         if result.returncode == 0:
             print("Run succeeded.")
-            with open(path / "output.log", "w") as f:
+            with open(path / case.log, "w") as f:
                 f.write(result.stdout)
             return True, result.stdout
         else:
@@ -330,7 +335,7 @@ def main():
         f"  Total: {len(results)}  |  Pass: {passed}  |  Fail: {failed}  |  Other: {skipped}"
     )
     print(
-        "\nOutput logs saved to tests/*/output.log.\n"
+        "\nOutput logs saved to tests/*/<case-log> (one file per case).\n"
         "To accept output as expected, copy it to the expected file "
         "configured in test.toml."
     )

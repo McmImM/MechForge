@@ -1,0 +1,5 @@
+server_info exists: True
+build_mech: ok
+show: joints=2 links=1 drivings=1
+unknown cmd: ok=False err=unknown command: bogus
+bad args: ok=False err=invalid arguments

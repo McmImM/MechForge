@@ -1,0 +1,2 @@
+solve: steps=4 first_t=0.25 last_t=1.00
+solve: first step q len=4

@@ -1,0 +1,6 @@
+repl._run jointAdd: ok=True text=added Joint 0 (Revolute)
+repl._run jointAdd2: ok=True
+repl._run linkAdd: ok=True
+repl._run drivingAdd: ok=True
+repl._run show: ok=True joints=2
+repl._solve: steps=2

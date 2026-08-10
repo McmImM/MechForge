@@ -1,0 +1,3 @@
+server_info exists: True
+server_info gone: True
+restart clean mech: joints=0

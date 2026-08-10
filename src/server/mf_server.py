@@ -36,6 +36,18 @@ def write_server_info(port: int) -> None:
     os.replace(tmp, SERVER_INFO_PATH)  # atomic: readers never see a partial file
 
 
+def _write_json(f, write_lock: threading.Lock, data: dict) -> None:
+    """Write one JSON object as a line to the client.
+
+    The per-connection write_lock serializes writes to this buffered socket:
+    the solve worker (step lines) and the handle thread (control replies)
+    would otherwise interleave bytes and corrupt the client's JSON stream.
+    """
+    with write_lock:
+        f.write((json.dumps(data) + "\n").encode())
+        f.flush()
+
+
 def _solve_worker(
     core: MechForgeCore,
     text: str,
@@ -55,22 +67,12 @@ def _solve_worker(
                     # the engine's "cancelled" and raises mf_CancelledError,
                     # which drains the pipe correctly (no stray line left).
                     continue
-                with write_lock:
-                    f.write((json.dumps(step) + "\n").encode())
-                    f.flush()
-            with write_lock:
-                f.write(b'{"status":"done"}\n')
-                f.flush()
+                _write_json(f, write_lock, step)
+            _write_json(f, write_lock, {"status": "done"})
         except mf_CancelledError:
-            with write_lock:
-                f.write(b'{"status":"cancelled"}\n')
-                f.flush()
+            _write_json(f, write_lock, {"status": "cancelled"})
         except MechForgeError as e:
-            with write_lock:
-                f.write(
-                    (json.dumps({"status": "error", "message": str(e)}) + "\n").encode()
-                )
-                f.flush()
+            _write_json(f, write_lock, {"status": "error", "message": str(e)})
         except OSError:
             # client disconnected mid-solve: stop the engine too, so its
             # "cancelled" line doesn't pollute the next solve on this core.
@@ -80,11 +82,17 @@ def _solve_worker(
 def handle(
     core: MechForgeCore,
     lock: threading.Lock,
-    write_lock: threading.Lock,
     conn: socket.socket,
 ) -> None:
-    """Serve one client connection: read command lines, reply one JSON line."""
+    """Serve one client connection: read command lines, reply one JSON line.
+
+    Each connection has its own write_lock: only THIS connection's threads
+    (the handle loop and its solve worker) write this socket, so a
+    per-connection lock is enough -- cross-connection writes target different
+    sockets and need no mutual exclusion.
+    """
     f = conn.makefile("rwb")
+    write_lock = threading.Lock()  # guards writes to this connection's socket
     while True:
         line = f.readline()
         if not line:  # EOF: client disconnected
@@ -100,9 +108,7 @@ def handle(
             except ValueError:
                 ctrl = None
             if ctrl is not None and ctrl.get("cmd") == "ping":
-                with write_lock:
-                    f.write(b'{"status":"ready"}\n')
-                    f.flush()
+                _write_json(f, write_lock, {"status": "ready"})
                 continue
             if ctrl is not None and ctrl.get("cmd") == "shutdown":
                 _shutdown.set()
@@ -136,9 +142,7 @@ def handle(
             "data": result.data,
             "error": result.error,
         }
-        with write_lock:
-            f.write((json.dumps(reply) + "\n").encode())
-            f.flush()
+        _write_json(f, write_lock, reply)
     conn.close()
 
 
@@ -146,7 +150,6 @@ def serve() -> None:
     # Created here (not at import time) so importing this module has no side effects.
     core = MechForgeCore()
     lock = threading.Lock()
-    write_lock = threading.Lock()  # serializes socket writes (solve steps vs replies)
 
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -165,7 +168,7 @@ def serve() -> None:
             except socket.timeout:
                 continue
             threading.Thread(
-                target=handle, args=(core, lock, write_lock, conn), daemon=True
+                target=handle, args=(core, lock, conn), daemon=True
             ).start()
     finally:
         # remove the published info so clients don't try to connect to a dead daemon

@@ -1,0 +1,36 @@
+name = "shared server chain"
+description = "REPL -> mf_remote -> mf_server integration: discovery/startup, command CRUD, cross-client shared state, streaming solve, solve cancel, graceful shutdown, REPL bridge"
+
+[build]
+command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mf_engine"
+
+[[case]]
+name = "server_basics"
+run = { command = "python3 run_cases.py server_basics" }
+validate = { kind = "txt", expected = "expected_server_basics.txt" }
+
+[[case]]
+name = "shared_state"
+run = { command = "python3 run_cases.py shared_state" }
+validate = { kind = "txt", expected = "expected_shared_state.txt" }
+
+[[case]]
+name = "solve_stream"
+run = { command = "python3 run_cases.py solve_stream" }
+validate = { kind = "txt", expected = "expected_solve_stream.txt" }
+
+[[case]]
+name = "solve_cancel"
+run = { command = "python3 run_cases.py solve_cancel" }
+validate = { kind = "txt", expected = "expected_solve_cancel.txt" }
+
+[[case]]
+name = "shutdown"
+run = { command = "python3 run_cases.py shutdown" }
+validate = { kind = "txt", expected = "expected_shutdown.txt" }
+
+[[case]]
+name = "repl_bridge"
+run = { command = "python3 run_cases.py repl_bridge" }
+validate = { kind = "txt", expected = "expected_repl_bridge.txt" }
+log = "custom_repl_bridge.log"

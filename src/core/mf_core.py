@@ -143,19 +143,19 @@ class Joint:
             "id": self.id if index is None else index,
             "type": self.type.value,
             "name": self.name,
-            "pos": list(self.pos),
+            "pos": [*self.pos],
         }
         if self.vel is not None:
-            data["vel"] = list(self.vel)
+            data["vel"] = [*self.vel]
         if self.acc is not None:
-            data["acc"] = list(self.acc)
+            data["acc"] = [*self.acc]
         if self.type == JointType.Grounded:
-            data["groundPos"] = list(cast(Vec2, self.groundPos))
+            data["groundPos"] = [*cast(Vec2, self.groundPos)]
             # has been validated to be not None; same below
         elif self.type == JointType.Prismatic:
             data["slide"] = {
-                "axis": list(cast(Vec2, self.prismaticAxis)),
-                "pos": list(cast(Vec2, self.prismaticPos)),
+                "axis": [*cast(Vec2, self.prismaticAxis)],
+                "pos": [*cast(Vec2, self.prismaticPos)],
             }
         return data
 
