@@ -30,6 +30,11 @@ run = { command = "python3 run_cases.py shutdown" }
 validate = { kind = "txt", expected = "expected_shutdown.txt" }
 
 [[case]]
+name = "solve_shutdown"
+run = { command = "python3 run_cases.py solve_shutdown" }
+validate = { kind = "txt", expected = "expected_solve_shutdown.txt" }
+
+[[case]]
 name = "repl_bridge"
 run = { command = "python3 run_cases.py repl_bridge" }
 validate = { kind = "txt", expected = "expected_repl_bridge.txt" }

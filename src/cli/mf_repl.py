@@ -9,11 +9,17 @@ mech held by the server.
 """
 
 import json
+import signal
 import sys
 
 import cmd2
 
-from mf_core import MechForgeCore, MechForgeError, mf_CancelledError
+from mf_core import (
+    MechForgeCore,
+    MechForgeError,
+    mf_CancelledError,
+    mf_TransportError,
+)
 import mf_commands as mc
 from mf_remote import ensure_server, RemoteCore
 
@@ -48,6 +54,22 @@ class MechForgeREPL(cmd2.Cmd):
         self.aliases["c"] = "clear"
 
         self.client = client
+        if isinstance(client, RemoteCore) and hasattr(signal, "SIGUSR1"):
+            signal.signal(signal.SIGUSR1, self._sigusr1)  # main thread
+            client.monitor(self._on_server_gone)
+
+    def _sigusr1(self, signum, frame):
+        """Signal handler (runs in the main thread): interrupt whatever the
+        REPL is blocked on (prompt_toolkit / readline) and exit.
+
+        cmd2 does not catch SystemExit, so it propagates out of cmdloop().
+        """
+        self.poutput("\nserver has shut down; exiting")
+        raise SystemExit(0)
+
+    def _on_server_gone(self) -> None:
+        """Called from the RemoteCore monitor thread when the server closed us."""
+        signal.raise_signal(signal.SIGUSR1)
 
     # --- helpers ---------------------------------------------------------
     @property
@@ -65,13 +87,23 @@ class MechForgeREPL(cmd2.Cmd):
     def _run(self, line: str) -> mc.CommandResult:
         """Execute a command line against the client (remote daemon or local core)."""
         if isinstance(self.client, RemoteCore):
-            return self.client.send_command(line)
+            try:
+                return self.client.send_command(line)
+            except mf_TransportError, OSError:
+                # The shared daemon is gone (e.g. another client shut it down);
+                # without it there is nothing left to do -- end the session.
+                self.poutput("server has shut down; exiting")
+                raise SystemExit(0)
         return mc.run_command(self.client, line)
 
     def _solve(self, line: str):
         """Stream solve steps from the client (remote daemon or local core)."""
         if isinstance(self.client, RemoteCore):
-            yield from self.client.solve(line)
+            try:
+                yield from self.client.solve(line)
+            except mf_TransportError, OSError:
+                self.poutput("server has shut down; exiting")
+                raise SystemExit(0)
         else:
             yield from mc.run_solve(self.client, line)
 
@@ -104,6 +136,20 @@ class MechForgeREPL(cmd2.Cmd):
         """Clear the terminal screen"""
         # ANSI escape: clear screen + move cursor to home
         self.poutput("\033[2J\033[H")
+
+    # --- shutdown (presentation; not part of mf_commands) ----------------
+    def do_shutdown(self, args):
+        """Shut down the shared server gracefully (drains in-flight work).
+
+        The daemon stops accepting, lets in-flight commands/solves finish (or
+        cancels an infinite solve), then exits. This REPL session also ends.
+        """
+        if isinstance(self.client, RemoteCore):
+            self.client.shutdown()
+            self.poutput("server shutting down")
+        else:
+            self.perror("no shared server to shut down (local core in use)")
+        return True  # end the REPL session
 
     # --- load -------------------------------------------------------------
     @cmd2.with_argparser(mc.load_parser)

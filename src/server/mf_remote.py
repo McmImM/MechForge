@@ -10,6 +10,7 @@ import json
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Self
@@ -86,6 +87,8 @@ class RemoteCore:
         self._port = port
         self._sock = socket.create_connection((host, port), timeout=PING_TIMEOUT)
         self._f = self._sock.makefile("rwb")
+        self._closed = False
+        self._server_gone = False
 
     def send_command(self, line: str) -> mc.CommandResult:
         self._f.write((line + "\n").encode())
@@ -136,7 +139,51 @@ class RemoteCore:
         self._f.write(b'{"cmd":"cancel"}\n')
         self._f.flush()
 
+    def shutdown(self) -> None:
+        """Ask the shared daemon to shut down gracefully, then close.
+
+        The daemon drains in-flight work before exiting (see mf_server.serve);
+        this client's connection is closed by the daemon during drain, and we
+        also close it here. Any further use of this client will fail.
+        """
+        try:
+            self._f.write(b'{"cmd":"shutdown"}\n')
+            self._f.flush()
+        finally:
+            self.close()
+
+    def monitor(self, on_gone) -> None:
+        """Watch this connection in the background; call on_gone() if the
+        server side closes it (e.g. the daemon is shutting down gracefully).
+
+        The watcher never consumes data (it peeks with MSG_PEEK), so it does
+        not interfere with the main thread's send_command/solve reads.
+        """
+        import select
+
+        def watch() -> None:
+            while not self._closed:
+                try:
+                    r, _, _ = select.select([self._sock], [], [], 1.0)
+                except (OSError, ValueError):
+                    break
+                if not r:
+                    continue
+                try:
+                    data = self._sock.recv(1, socket.MSG_PEEK)
+                except (OSError, ValueError):
+                    break
+                if not data:  # EOF: server closed the connection
+                    break
+            if not self._closed:
+                self._server_gone = True
+                if on_gone is not None:
+                    on_gone()
+
+        threading.Thread(target=watch, daemon=True).start()
+
     def close(self) -> None:
+        self._closed = True
         self._f.close()
         self._sock.close()
 

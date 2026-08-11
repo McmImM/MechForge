@@ -9,16 +9,18 @@ Prints deterministic text to stdout, compared against expected_*.txt by
 run_tests.py. Any assertion failure raises -> traceback to stderr -> RUN FAIL.
 """
 
+import os
 import socket
 import sys
 import threading
 import time
 from pathlib import Path
+import json
 
 BUILD_LIB = Path(__file__).resolve().parent.parent.parent / "build" / "lib"
 sys.path.insert(0, str(BUILD_LIB))
 
-from mf_remote import ensure_server, RemoteCore  # noqa: E402
+from mf_remote import ensure_server, RemoteCore, ping  # noqa: E402
 from mf_core import mf_CancelledError  # noqa: E402
 from mf_server import SERVER_INFO_PATH  # noqa: E402
 from mf_repl import MechForgeREPL  # noqa: E402
@@ -29,21 +31,36 @@ CLEAN_SLA = 0.2  # settle time after shutdown / before start
 def _shutdown_daemon() -> None:
     """Test fixture: shut the daemon down via the current control protocol.
 
-    Not part of the public API -- used only to isolate cases from each other
-    (each case starts from a clean daemon and leaves none behind).
+    Waits until the daemon PROCESS has truly exited (pid gone), so the next
+    ensure_server never reuses a daemon that is still draining/shutting down.
     """
+    pid: int | None = None
     try:
-        import json
-
         info = json.loads(SERVER_INFO_PATH.read_text())
         port = int(info["port"])
+        pid = int(info.get("pid", 0)) or None
         s = socket.create_connection(("127.0.0.1", port), timeout=1)
         with s.makefile("rwb") as f:
             f.write(b'{"cmd":"shutdown"}\n')
             f.flush()
-    except (OSError, KeyError, ValueError):
+    except OSError, KeyError, ValueError:
         pass  # nothing live to stop
-    time.sleep(CLEAN_SLA)
+
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        if pid is not None:
+            try:
+                os.kill(pid, 0)  # raises ProcessLookupError if the process is gone
+            except OSError:
+                return  # daemon process exited
+        else:
+            # no pid recorded: fall back to watching the published file
+            try:
+                int(json.loads(SERVER_INFO_PATH.read_text())["port"])
+            except OSError, KeyError, ValueError:
+                return  # file gone
+        time.sleep(0.1)
+    time.sleep(CLEAN_SLA)  # give up waiting; proceed anyway
 
 
 def fresh_server() -> RemoteCore:
@@ -207,12 +224,61 @@ def case_repl_bridge() -> None:
         finish()
 
 
+def case_solve_shutdown() -> None:
+    """Graceful shutdown while a solve is running.
+
+    An infinite solve holds the core lock; the daemon must drain it (cancel it
+    after the grace period), close connections, unlink server_info.json and
+    exit. A fresh daemon then starts with an empty mech.
+    """
+    rc1 = fresh_server()
+    try:
+        build_mech(rc1)
+        result: dict[str, str] = {}
+        done = threading.Event()
+
+        def run_solve() -> None:
+            try:
+                for _ in rc1.solve("solve -e 100000 -s 0.01"):
+                    pass
+                result["status"] = "finished"
+            except mf_CancelledError:
+                result["status"] = "cancelled"
+            except Exception as e:  # noqa: BLE001 - also report transport errors
+                result["status"] = type(e).__name__
+            finally:
+                done.set()
+
+        threading.Thread(target=run_solve, daemon=True).start()
+        time.sleep(0.3)  # let the solve start and grab the core lock
+        _shutdown_daemon()  # request a graceful shutdown from "another client"
+        done.wait(timeout=8)  # the infinite solve must be cancelled during drain
+        print(f"solve ended: {result.get('status', '?')}")
+
+        # the daemon's finally unlinks server_info after draining; wait for it
+        deadline = time.monotonic() + 4
+        while SERVER_INFO_PATH.exists() and time.monotonic() < deadline:
+            time.sleep(0.1)
+        print(f"server_info gone: {not SERVER_INFO_PATH.exists()}")
+
+        rc3 = ensure_server()  # a fresh daemon must start with an empty mech
+        try:
+            j, _, _ = count_components(rc3)
+            print(f"restart clean mech: joints={j}")
+        finally:
+            rc3.close()
+    finally:
+        rc1.close()
+        finish()
+
+
 CASES = {
     "server_basics": case_server_basics,
     "shared_state": case_shared_state,
     "solve_stream": case_solve_stream,
     "solve_cancel": case_solve_cancel,
     "shutdown": case_shutdown,
+    "solve_shutdown": case_solve_shutdown,
     "repl_bridge": case_repl_bridge,
 }
 
