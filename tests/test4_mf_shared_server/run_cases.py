@@ -9,7 +9,6 @@ Prints deterministic text to stdout, compared against expected_*.txt by
 run_tests.py. Any assertion failure raises -> traceback to stderr -> RUN FAIL.
 """
 
-import os
 import socket
 import sys
 import threading
@@ -31,14 +30,15 @@ CLEAN_SLA = 0.2  # settle time after shutdown / before start
 def _shutdown_daemon() -> None:
     """Test fixture: shut the daemon down via the current control protocol.
 
-    Waits until the daemon PROCESS has truly exited (pid gone), so the next
-    ensure_server never reuses a daemon that is still draining/shutting down.
+    Waits until the daemon has unlinked server_info.json -- its last shutdown
+    step, right before the process exits. We watch the FILE, not the pid: a
+    zombie keeps /proc/<pid> so os.kill(pid, 0) still succeeds and can't tell
+    "exited" from "alive", which would make every teardown wait out the full
+    deadline.
     """
-    pid: int | None = None
     try:
         info = json.loads(SERVER_INFO_PATH.read_text())
         port = int(info["port"])
-        pid = int(info.get("pid", 0)) or None
         s = socket.create_connection(("127.0.0.1", port), timeout=1)
         with s.makefile("rwb") as f:
             f.write(b'{"cmd":"shutdown"}\n')
@@ -48,17 +48,10 @@ def _shutdown_daemon() -> None:
 
     deadline = time.monotonic() + 5.0
     while time.monotonic() < deadline:
-        if pid is not None:
-            try:
-                os.kill(pid, 0)  # raises ProcessLookupError if the process is gone
-            except OSError:
-                return  # daemon process exited
-        else:
-            # no pid recorded: fall back to watching the published file
-            try:
-                int(json.loads(SERVER_INFO_PATH.read_text())["port"])
-            except OSError, KeyError, ValueError:
-                return  # file gone
+        try:
+            int(json.loads(SERVER_INFO_PATH.read_text())["port"])
+        except OSError, KeyError, ValueError:
+            return  # server_info gone: daemon finished cleaning up
         time.sleep(0.1)
     time.sleep(CLEAN_SLA)  # give up waiting; proceed anyway
 

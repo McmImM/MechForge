@@ -9,6 +9,7 @@ mech held by the server.
 """
 
 import json
+import os
 import signal
 import sys
 
@@ -68,8 +69,15 @@ class MechForgeREPL(cmd2.Cmd):
         raise SystemExit(0)
 
     def _on_server_gone(self) -> None:
-        """Called from the RemoteCore monitor thread when the server closed us."""
-        signal.raise_signal(signal.SIGUSR1)
+        """Called from the RemoteCore monitor thread when the server closed us.
+
+        Must use os.kill, NOT signal.raise_signal: raise_signal uses raise(),
+        which from a non-main thread delivers the signal to THAT thread only;
+        the main thread blocked in readline never runs the handler. os.kill
+        targets the whole process, so the main thread gets the SIGUSR1 and our
+        handler runs (and interrupts the blocking readline).
+        """
+        os.kill(os.getpid(), signal.SIGUSR1)
 
     # --- helpers ---------------------------------------------------------
     @property

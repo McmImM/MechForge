@@ -7,7 +7,6 @@ single mech held by mf_server.
 """
 
 import json
-import queue
 import socket
 import subprocess
 import sys
@@ -86,18 +85,18 @@ class RemoteCore:
     def __init__(self, port: int, host: str = HOST) -> None:
         self._host = host
         self._port = port
-        # Blocking socket: streaming solve must not hit an arbitrary timeout.
-        self._sock = socket.create_connection((host, port))
+        self._sock = socket.create_connection((host, port), timeout=PING_TIMEOUT)
+        self._f = self._sock.makefile("rwb")
         self._closed = False
         self._server_gone = False
-        self._on_gone = None
-        self._lines: queue.Queue[str | None] = queue.Queue()
-        threading.Thread(target=self._read_loop, daemon=True).start()
 
     def send_command(self, line: str) -> mc.CommandResult:
-        self._sock.sendall((line + "\n").encode())
-        raw = self._get()
-        resp = json.loads(raw)
+        self._f.write((line + "\n").encode())
+        self._f.flush()
+        raw = self._f.readline()
+        if not raw:
+            raise mf_TransportError("server closed the connection")
+        resp = json.loads(raw.decode())
         return mc.CommandResult(
             ok=bool(resp.get("ok")),
             text=resp.get("text") or "",
@@ -113,10 +112,13 @@ class RemoteCore:
         cancel(); the server then replies with the terminal "cancelled" line
         and this generator raises mf_CancelledError.
         """
-        self._sock.sendall((line + "\n").encode())
+        self._f.write((line + "\n").encode())
+        self._f.flush()
         while True:
-            raw = self._get()
-            resp = json.loads(raw)
+            raw = self._f.readline()
+            if not raw:
+                raise mf_TransportError("server closed during solve")
+            resp = json.loads(raw.decode())
             status = resp.get("status")
             if status == "done":
                 return
@@ -134,7 +136,8 @@ class RemoteCore:
         {"status":"cancelled"} line, which solve() turns into
         mf_CancelledError.
         """
-        self._sock.sendall(b'{"cmd":"cancel"}\n')
+        self._f.write(b'{"cmd":"cancel"}\n')
+        self._f.flush()
 
     def shutdown(self) -> None:
         """Ask the shared daemon to shut down gracefully, then close.
@@ -144,57 +147,44 @@ class RemoteCore:
         also close it here. Any further use of this client will fail.
         """
         try:
-            self._sock.sendall(b'{"cmd":"shutdown"}\n')
+            self._f.write(b'{"cmd":"shutdown"}\n')
+            self._f.flush()
         finally:
             self.close()
 
-    def _read_loop(self) -> None:
-        """Sole socket reader: accumulate bytes, split on newlines, queue lines.
-
-        Uses the raw socket (no makefile): a makefile's SocketIO shares one
-        internal lock between readline and close, so a reader blocked in
-        readline holds it forever and close() from another thread would hang.
-        Because this thread is the ONLY reader there is no MSG_PEEK-vs-makefile
-        race: it reliably sees the real EOF when the server closes the socket.
-        """
-        buf = b""
-        while not self._closed:
-            try:
-                chunk = self._sock.recv(4096)
-            except OSError:
-                break
-            if not chunk:  # EOF: server closed the connection
-                break
-            buf += chunk
-            while b"\n" in buf:
-                line, _, rest = buf.partition(b"\n")
-                buf = rest
-                self._lines.put(line.decode())
-        self._lines.put(None)  # sentinel so blocked getters wake up
-        if not self._closed:
-            self._server_gone = True
-            if self._on_gone is not None:
-                self._on_gone()
-
-    def _get(self) -> str:
-        """Block for the next line from the reader thread."""
-        # Block until a line is available from the reader thread
-        line = self._lines.get()
-
-        if line is None:
-            raise mf_TransportError("server closed the connection")
-        return line
-
     def monitor(self, on_gone) -> None:
-        """Register a callback fired (background thread) when the server
-        closes this connection (e.g. the daemon is shutting down gracefully).
+        """Watch this connection in the background; call on_gone() if the
+        server side closes it (e.g. the daemon is shutting down gracefully).
 
-        The reader thread (started in __init__) detects EOF and calls this.
+        The watcher never consumes data (it peeks with MSG_PEEK), so it does
+        not interfere with the main thread's send_command/solve reads.
         """
-        self._on_gone = on_gone
+        import select
+
+        def watch() -> None:
+            while not self._closed:
+                try:
+                    r, _, _ = select.select([self._sock], [], [], 1.0)
+                except (OSError, ValueError):
+                    break
+                if not r:
+                    continue
+                try:
+                    data = self._sock.recv(1, socket.MSG_PEEK)
+                except (OSError, ValueError):
+                    break
+                if not data:  # EOF: server closed the connection
+                    break
+            if not self._closed:
+                self._server_gone = True
+                if on_gone is not None:
+                    on_gone()
+
+        threading.Thread(target=watch, daemon=True).start()
 
     def close(self) -> None:
         self._closed = True
+        self._f.close()
         self._sock.close()
 
     def __enter__(self) -> Self:

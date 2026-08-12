@@ -11,6 +11,7 @@ import socket
 import sys
 import threading
 from pathlib import Path
+import io
 
 from mf_core import MechForgeCore, MechForgeError, mf_CancelledError
 import mf_commands as mc
@@ -40,7 +41,7 @@ def write_server_info(port: int) -> None:
     os.replace(tmp, SERVER_INFO_PATH)  # atomic: readers never see a partial file
 
 
-def _write_json(f, write_lock: threading.Lock, data: dict) -> None:
+def _write_json(f: io.BufferedIOBase, write_lock: threading.Lock, data: dict) -> None:
     """Write one JSON object as a line to the client.
 
     The per-connection write_lock serializes writes to this buffered socket:
@@ -55,7 +56,7 @@ def _write_json(f, write_lock: threading.Lock, data: dict) -> None:
 def _solve_worker(
     core: MechForgeCore,
     text: str,
-    f,
+    f: io.BufferedIOBase,
     lock: threading.Lock,
     write_lock: threading.Lock,
 ) -> None:
@@ -99,7 +100,7 @@ def handle(
     per-connection lock is enough -- cross-connection writes target different
     sockets and need no mutual exclusion.
     """
-    f = conn.makefile("rwb")
+    f: io.BufferedIOBase = conn.makefile("rwb")
     write_lock = threading.Lock()  # guards writes to this connection's socket
     try:
         while True:
@@ -137,7 +138,7 @@ def handle(
                 _solve_cancel.clear()  # drop any stale cancel from a finished solve
                 w = threading.Thread(
                     target=_solve_worker,
-                    args=(core, text, f, lock, write_lock, _solve_cancel),
+                    args=(core, text, f, lock, write_lock),
                     daemon=True,
                 )
                 threads.append(w)  # joinable at shutdown for a graceful drain
