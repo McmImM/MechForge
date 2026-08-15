@@ -7,6 +7,9 @@ build/
 # cache
 __pycache__/
 
+# downloads
+downloads/
+
 # log files
 *.log
 
