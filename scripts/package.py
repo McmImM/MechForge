@@ -9,6 +9,7 @@ Usage:
         python3 scripts/package.py --target linux-x86_64 --target windows-x86_64
         python3 scripts/package.py --target linux-x86_64 --print-urls # print URLs only
         python3 scripts/package.py --target linux-x86_64 --no-extract # download only
+        python3 scripts/package.py --target linux-x86_64 --deps       # also pip-install deps
         python3 scripts/package.py --target linux-x86_64 --python-version 3.14.7
 
     <target> choices:
@@ -26,9 +27,11 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tarfile
 import time
+import tomllib
 from http.client import IncompleteRead
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -269,11 +272,72 @@ def install_python_runtime(python_version: str, target: str) -> Path:
     return python_dir
 
 
+def _python_exe(target: str) -> Path:
+    """Path to the embedded python executable for a target."""
+    python_dir = BUILD_DIR / target / "python"
+    if target.startswith("windows-"):
+        return python_dir / "python.exe"
+    return python_dir / "bin" / "python3"
+
+
+def _project_dependencies() -> list[str]:
+    """Read [project].dependencies from the repo root pyproject.toml."""
+    pyproject = PROJECT_ROOT / "pyproject.toml"
+    with pyproject.open("rb") as fh:
+        data = tomllib.load(fh)
+    deps = data.get("project", {}).get("dependencies")
+    if deps is None:
+        return []
+    if not isinstance(deps, list) or not all(isinstance(d, str) for d in deps):
+        raise RuntimeError(f"Invalid [project].dependencies in {pyproject}")
+    return deps
+
+
+def _dep_module_names(deps: list[str]) -> list[str]:
+    """Best-effort distribution name -> importable module name (1:1 here)."""
+    names: list[str] = []
+    for dep in deps:
+        name = re.split(r"[<>=!~\[;]", dep, maxsplit=1)[0].strip()
+        if name:
+            names.append(name)
+    return names
+
+
+def _verify_deps(python_exe: Path, deps: list[str]) -> None:
+    """Import each dependency with the embedded python to confirm install."""
+    modules = ", ".join(repr(n) for n in _dep_module_names(deps))
+    code = (
+        "import importlib; "
+        f"[importlib.import_module(m) for m in [{modules}]]; "
+        "print('deps ok')"
+    )
+    subprocess.run([str(python_exe), "-c", code], check=True)
+
+
+def install_deps_for_target(python_version: str, target: str) -> None:
+    """Ensure the runtime is extracted, then pip-install project deps into it."""
+    install_python_runtime(python_version, target)
+    python_exe = _python_exe(target)
+    if not python_exe.exists():
+        raise RuntimeError(f"Python executable not found: {python_exe}")
+
+    deps = _project_dependencies()
+    if not deps:
+        print(f"[deps] {target}: no dependencies in pyproject.toml, nothing to do")
+        return
+
+    print(f"[deps] {target}: pip install {', '.join(deps)}")
+    subprocess.run([str(python_exe), "-m", "pip", "install", *deps], check=True)
+    _verify_deps(python_exe, deps)
+    print(f"[deps ok] {target}: {python_exe}")
+
+
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Resolve python-build-standalone archives by Python version and target: "
-            "download to downloads/ (cached), then extract to build/<target>/python/."
+            "download to downloads/ (cached), extract to build/<target>/python/, "
+            "and optionally pip-install project dependencies."
         )
     )
     parser.add_argument(
@@ -298,6 +362,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Download to downloads/ but do not extract to build/<target>/",
     )
+    parser.add_argument(
+        "--deps",
+        action="store_true",
+        help="After ensuring the runtime, pip-install [project].dependencies "
+        "into build/<target>/python/ (native install).",
+    )
     return parser.parse_args(argv)
 
 
@@ -313,7 +383,9 @@ def package(argv: list[str] | None = None) -> int:
         return 0
 
     for target in targets:
-        if args.no_extract:
+        if args.deps:
+            install_deps_for_target(python_version, target)
+        elif args.no_extract:
             ensure_python_archive(python_version, target)
         else:
             install_python_runtime(python_version, target)
