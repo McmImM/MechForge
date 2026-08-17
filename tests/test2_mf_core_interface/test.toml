@@ -3,7 +3,7 @@ description = "Python client (mf_core) basic interface: data model, file loading
 
 
 [build]
-command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mf_engine"
+command = "cmake -S ../.. -B ../../build/debug && cmake --build ../../build/debug --target mf_engine"
 
 
 [run]

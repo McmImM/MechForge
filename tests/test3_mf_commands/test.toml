@@ -2,7 +2,7 @@ name = "mf_commands command layer"
 description = "Headless command executor (mf_commands): parsers, run_command CRUD/show/errors, run_solve streaming"
 
 [build]
-command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mf_engine"
+command = "cmake -S ../.. -B ../../build/debug && cmake --build ../../build/debug --target mf_engine"
 
 [[case]]
 name = "parse_joint"

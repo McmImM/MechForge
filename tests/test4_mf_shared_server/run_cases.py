@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 import json
 
-BUILD_LIB = Path(__file__).resolve().parent.parent.parent / "build" / "lib"
+BUILD_LIB = Path(__file__).resolve().parent.parent.parent / "build" / "debug" / "lib"
 sys.path.insert(0, str(BUILD_LIB))
 
 from mf_remote import ensure_server, RemoteCore, ping  # noqa: E402

@@ -3,11 +3,11 @@ description = "CLI solver with REPL JSON input (build + solve + exit), outputs J
 
 
 [build]
-command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mf_engine"
+command = "cmake -S ../.. -B ../../build/debug && cmake --build ../../build/debug --target mf_engine"
 
 
 [run]
-command = "../../build/bin/mf_engine"
+command = "../../build/debug/bin/mf_engine"
 stdin = "input.jsonlines"
 
 

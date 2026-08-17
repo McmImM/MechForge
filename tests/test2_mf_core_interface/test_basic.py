@@ -18,7 +18,7 @@ from pathlib import Path
 
 # mf_core.py is copied into the CMake build output by configure_file,
 # so SCHEMA_DIR and MF_ENGINE resolve correctly from there.
-BUILD_LIB = Path(__file__).resolve().parent.parent.parent / "build" / "lib"
+BUILD_LIB = Path(__file__).resolve().parent.parent.parent / "build" / "debug" / "lib"
 sys.path.insert(0, str(BUILD_LIB))
 
 # The module is found at runtime via sys.path above; the IDE can't see that,

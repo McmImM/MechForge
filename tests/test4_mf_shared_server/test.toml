@@ -2,7 +2,7 @@ name = "shared server chain"
 description = "REPL -> mf_remote -> mf_server integration: discovery/startup, command CRUD, cross-client shared state, streaming solve, solve cancel, graceful shutdown, REPL bridge"
 
 [build]
-command = "cmake -S ../.. -B ../../build && cmake --build ../../build --target mf_engine"
+command = "cmake -S ../.. -B ../../build/debug && cmake --build ../../build/debug --target mf_engine"
 
 [[case]]
 name = "server_basics"

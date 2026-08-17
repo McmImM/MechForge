@@ -10,8 +10,8 @@ import json
 import sys
 from pathlib import Path
 
-# The mf_*.py modules are flattened into build/lib/ by CMake.
-BUILD_LIB = Path(__file__).resolve().parent.parent.parent / "build" / "lib"
+# The mf_*.py modules are flattened into build/debug/lib/ by CMake.
+BUILD_LIB = Path(__file__).resolve().parent.parent.parent / "build" / "debug" / "lib"
 sys.path.insert(0, str(BUILD_LIB))
 
 from mf_core import MechForgeCore  # noqa: E402  # type: ignore[import-not-found]
