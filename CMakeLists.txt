@@ -33,11 +33,12 @@ target_include_directories(mf_engine PRIVATE
     ${TINYEXPR_DIR}
 )
 
-# --- Python modules: copy (flattened) into build/lib/ -----------------------
+# Python modules: copy (flattened) into lib/
 set(MF_PYTHON_MODULES
     ${CMAKE_SOURCE_DIR}/src/core/mf_core.py
     ${CMAKE_SOURCE_DIR}/src/cli/mf_commands.py
     ${CMAKE_SOURCE_DIR}/src/cli/mf_repl.py
+    ${CMAKE_SOURCE_DIR}/src/gui/mf_gui.py
     ${CMAKE_SOURCE_DIR}/src/server/mf_server.py
     ${CMAKE_SOURCE_DIR}/src/server/mf_remote.py
     ${CMAKE_SOURCE_DIR}/src/mcp/mf_mcp.py
@@ -48,8 +49,31 @@ foreach(mfpy ${MF_PYTHON_MODULES})
     configure_file(${mfpy} ${CMAKE_BINARY_DIR}/lib/${mfname} COPYONLY)
 endforeach()
 
-# Copy the schemas directory into build/lib/schemas/
+# Copy the schemas directory into lib/schemas/
 file(COPY ${CMAKE_SOURCE_DIR}/src/core/schemas/ DESTINATION ${CMAKE_BINARY_DIR}/lib/schemas/)
+
+# Compile *.ui files into Python modules in lib/
+find_program(PYSIDE6_UIC NAMES pyside6-uic PATHS ${CMAKE_SOURCE_DIR}/.venv/bin)
+if(PYSIDE6_UIC)
+    file(GLOB UI_FILES 
+        CONFIGURE_DEPENDS
+        ${CMAKE_SOURCE_DIR}/src/gui/*.ui)
+    foreach(ui_file ${UI_FILES})
+        get_filename_component(ui_name ${ui_file} NAME_WE)
+        set(output_file ${CMAKE_BINARY_DIR}/lib/ui_${ui_name}.py)
+        add_custom_command(
+            OUTPUT ${output_file}
+            COMMAND ${PYSIDE6_UIC} -o ${output_file} ${ui_file}
+            DEPENDS ${ui_file}
+            COMMENT "Compiling ${ui_file} to ${output_file}"
+        )
+        list(APPEND GENERATED_UI_FILES ${output_file})
+    endforeach()
+    add_custom_target(GenerateUIModules ALL DEPENDS ${GENERATED_UI_FILES})
+else()
+    message(FATAL_ERROR "pyside6-uic not found. GUI modules will not be generated.")
+endif()
+
 
 # --- Thin executable entry scripts in build/bin/ ----------------------------
 # Each entry adds lib/ to sys.path and calls main() in the implementation

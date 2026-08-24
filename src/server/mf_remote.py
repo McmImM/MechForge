@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Self
+from typing import Callable, Self
 
 from mf_core import mf_TransportError, mf_EngineError, mf_CancelledError
 import mf_commands as mc
@@ -90,7 +90,7 @@ class RemoteCore:
         self._sock = socket.create_connection((host, port))
         self._closed = False
         self._server_gone = False
-        self._on_gone = None
+        self._on_gone: Callable[[], None] | None = None
         self._lines: queue.Queue[str | None] = queue.Queue()
         threading.Thread(target=self._read_loop, daemon=True).start()
 

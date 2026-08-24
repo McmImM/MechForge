@@ -15,3 +15,7 @@ downloads/
 
 # env files
 .envrc
+
+# ui files which are generated in the src/gui directory for ease of use,
+# but should not be tracked in git.
+ui_*.py

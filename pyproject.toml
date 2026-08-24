@@ -7,5 +7,6 @@ requires-python = ">=3.14"
 dependencies = [
  "cmd2>=4.1.2",
  "jsonschema>=4.26.0",
+ "pyside6>=6.11.2",
  "referencing>=0.35",
 ]
