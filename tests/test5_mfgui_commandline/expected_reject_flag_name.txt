@@ -1,0 +1,6 @@
+== --posX value pending: '--v' must be rejected ==
+cmd=['drivingAdd', 'position', '1', '2', '--posX'] | cur='' | choices=[] | prompt='value for --posX (1 left)'
+prompt='value for --posX (1 left)' (value for --posX pending)
+is_token_valid('--v') = False (should be False)
+space -> ok=False msg='Invalid token: --v' (should be False, Invalid token)
+cmd=['drivingAdd', 'position', '1', '2', '--posX'] | cur='' | choices=[] | prompt='value for --posX (1 left)'

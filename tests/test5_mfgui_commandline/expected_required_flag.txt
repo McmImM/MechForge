@@ -1,0 +1,11 @@
+== drivingAdd position: REQUIRED flags ==
+cmd=['drivingAdd'] | cur='' | choices=['position', 'angle', 'distance']
+cmd=['drivingAdd', 'position'] | cur='' | choices=[] | prompt='JOINTA'
+prompt='JOINTA' (should be JOINTA)
+cmd=['drivingAdd', 'position', '1'] | cur='' | choices=[] | prompt='JOINTB'
+prompt='JOINTB' (should be JOINTB)
+cmd=['drivingAdd', 'position', '1', '2'] | cur='' | choices=['--posX']
+choices: ['--posX'] (should be [--posX], auto-selected)
+space -> ok=True msg=''
+cmd=['drivingAdd', 'position', '1', '2', '--posX'] | cur='' | choices=[] | prompt='value for --posX (1 left)'
+prompt='value for --posX (1 left)' (should be value for --posX (1 left))

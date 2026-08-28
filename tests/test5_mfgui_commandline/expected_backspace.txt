@@ -1,0 +1,5 @@
+== pop_token: jointAdd revolute 1 -> back to 1 ==
+cmd=['jointAdd', 'revolute', '1'] | cur='' | choices=[] | prompt='Y'
+cmd=['jointAdd', 'revolute'] | cur='1' | choices=[] | prompt='X'
+cur='1' (should be '1')
+prompt='X' (should be X again)

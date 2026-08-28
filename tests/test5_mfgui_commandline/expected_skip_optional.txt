@@ -1,0 +1,10 @@
+== linkAdd 1 2 10: skip --name, execute ==
+cmd=['linkAdd'] | cur='' | choices=[] | prompt='JOINTA'
+prompt='JOINTA' (should be JOINTA)
+prompt='JOINTB' (should be JOINTB)
+prompt='LENGTH' (should be LENGTH)
+cmd=['linkAdd', '1', '2', '10'] | cur='' | choices=['--name']
+choices: ['--name'] (should be [--name], NOT auto-selected)
+space -> ok=True msg=''
+executed: ['linkAdd 1 2 10']
+cmd=[] | cur='' | choices=['load', 'show', 'jointAdd', 'jointEdit', 'jointRemove', 'linkAdd', 'linkEdit', 'linkRemove', 'drivingAdd', 'drivingEdit', 'drivingRemove', 'solve']

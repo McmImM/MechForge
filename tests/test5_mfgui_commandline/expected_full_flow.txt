@@ -1,0 +1,6 @@
+== full flow: jointAdd revolute 1 2 --vel 1 0 ==
+cmd=['jointAdd', 'revolute', '1', '2', '--vel', '1', '0'] | cur='' | choices=['--name', '--acc']
+choices: ['--name', '--acc'] (should be [--acc], optional)
+space -> ok=True msg=''
+executed: ['jointAdd revolute 1 2 --vel 1 0']
+cmd=[] | cur='' | choices=['load', 'show', 'jointAdd', 'jointEdit', 'jointRemove', 'linkAdd', 'linkEdit', 'linkRemove', 'drivingAdd', 'drivingEdit', 'drivingRemove', 'solve']

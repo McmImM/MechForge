@@ -54,18 +54,34 @@
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
           <horstretch>0</horstretch>
-          <verstretch>4</verstretch>
+          <verstretch>3</verstretch>
          </sizepolicy>
         </property>
        </widget>
        <widget class="QLineEdit" name="cmdInput"/>
-       <widget class="QPlainTextEdit" name="cmdLog">
+       <widget class="QTabWidget" name="tabWidget">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
           <horstretch>0</horstretch>
           <verstretch>1</verstretch>
          </sizepolicy>
         </property>
+        <property name="currentIndex">
+         <number>0</number>
+        </property>
+        <widget class="MFGuiHints" name="hints">
+         <property name="flow">
+          <enum>QListView::Flow::LeftToRight</enum>
+         </property>
+         <attribute name="title">
+          <string>Hints</string>
+         </attribute>
+        </widget>
+        <widget class="QWidget" name="cmdLog">
+         <attribute name="title">
+          <string>CMD Logs</string>
+         </attribute>
+        </widget>
        </widget>
       </widget>
      </widget>
@@ -78,7 +94,7 @@
      <x>0</x>
      <y>0</y>
      <width>654</width>
-     <height>33</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -144,6 +160,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MFGuiHints</class>
+   <extends>QListWidget</extends>
+   <header>mfgui_hints</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

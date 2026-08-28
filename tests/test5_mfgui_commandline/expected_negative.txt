@@ -1,0 +1,8 @@
+== jointAdd revolute -1 -2: negative positionals ==
+is_token_valid('-1') = True
+is_token_valid('-2') = True
+cmd=['jointAdd', 'revolute', '-1', '-2'] | cur='' | choices=[] | prompt='X'
+
+== drivingAdd position 1 2 --posX -t*2: negative expression ==
+is_token_valid('-t*2') = True
+cmd=['drivingAdd', 'position', '1', '2', '--posX', '-t*2'] | cur='' | choices=['--posY']

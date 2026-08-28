@@ -1,0 +1,8 @@
+== jointAdd revolute: positional X, Y ==
+cmd=['jointAdd'] | cur='' | choices=['ground', 'fixed', 'revolute', 'prismatic', 'free']
+cmd=['jointAdd', 'prismatic'] | cur='' | choices=[] | prompt='X'
+prompt='X' (should be X)
+cmd=['jointAdd', 'prismatic', '1'] | cur='' | choices=[] | prompt='Y'
+prompt='Y' (should be Y)
+cmd=['jointAdd', 'prismatic', '1', '2'] | cur='' | choices=['--slide-axis']
+choices: ['--slide-axis'] (should be flags only)

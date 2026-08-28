@@ -1,0 +1,89 @@
+
+########## completion ##########
+== command-name completion ==
+cmd=[] | cur='j' | choices=['jointAdd', 'jointEdit', 'jointRemove']
+choices: ['jointAdd', 'jointEdit', 'jointRemove']
+
+== confirm jointAdd, then TYPE choices ==
+space -> ok=True msg=''
+cmd=['jointAdd'] | cur='' | choices=['ground', 'fixed', 'revolute', 'prismatic', 'free']
+choices: ['ground', 'fixed', 'revolute', 'prismatic', 'free']
+choice=0 (auto-selected first CHOICE)
+
+########## positional ##########
+== jointAdd revolute: positional X, Y ==
+cmd=['jointAdd'] | cur='' | choices=['ground', 'fixed', 'revolute', 'prismatic', 'free']
+cmd=['jointAdd', 'prismatic'] | cur='' | choices=[] | prompt='X'
+prompt='X' (should be X)
+cmd=['jointAdd', 'prismatic', '1'] | cur='' | choices=[] | prompt='Y'
+prompt='Y' (should be Y)
+cmd=['jointAdd', 'prismatic', '1', '2'] | cur='' | choices=['--slide-axis']
+choices: ['--slide-axis'] (should be flags only)
+
+########## flag_value ##########
+== jointAdd revolute 1 2 --vel: two values ==
+cmd=['jointAdd', 'revolute', '1', '2'] | cur='' | choices=['--name', '--vel', '--acc']
+cmd=['jointAdd', 'revolute', '1', '2', '--vel'] | cur='' | choices=[] | prompt='value for --vel (2 left)'
+prompt='value for --vel (2 left)' (should be value for --vel (2 left))
+cmd=['jointAdd', 'revolute', '1', '2', '--vel', '1'] | cur='' | choices=[] | prompt='value for --vel (1 left)'
+prompt='value for --vel (1 left)' (should be value for --vel (1 left))
+cmd=['jointAdd', 'revolute', '1', '2', '--vel', '1', '0'] | cur='' | choices=['--name', '--acc']
+choices: ['--name', '--acc'] (should be --acc only)
+
+########## required_flag ##########
+== drivingAdd position: REQUIRED flags ==
+cmd=['drivingAdd'] | cur='' | choices=['position', 'angle', 'distance']
+cmd=['drivingAdd', 'position'] | cur='' | choices=[] | prompt='JOINTA'
+prompt='JOINTA' (should be JOINTA)
+cmd=['drivingAdd', 'position', '1'] | cur='' | choices=[] | prompt='JOINTB'
+prompt='JOINTB' (should be JOINTB)
+cmd=['drivingAdd', 'position', '1', '2'] | cur='' | choices=['--posX']
+choices: ['--posX'] (should be [--posX], auto-selected)
+space -> ok=True msg=''
+cmd=['drivingAdd', 'position', '1', '2', '--posX'] | cur='' | choices=[] | prompt='value for --posX (1 left)'
+prompt='value for --posX (1 left)' (should be value for --posX (1 left))
+
+########## skip_optional ##########
+== linkAdd 1 2 10: skip --name, execute ==
+cmd=['linkAdd'] | cur='' | choices=[] | prompt='JOINTA'
+prompt='JOINTA' (should be JOINTA)
+prompt='JOINTB' (should be JOINTB)
+prompt='LENGTH' (should be LENGTH)
+cmd=['linkAdd', '1', '2', '10'] | cur='' | choices=['--name']
+choices: ['--name'] (should be [--name], NOT auto-selected)
+space -> ok=True msg=''
+executed: ['linkAdd 1 2 10']
+cmd=[] | cur='' | choices=['load', 'show', 'jointAdd', 'jointEdit', 'jointRemove', 'linkAdd', 'linkEdit', 'linkRemove', 'drivingAdd', 'drivingEdit', 'drivingRemove', 'solve']
+
+########## negative ##########
+== jointAdd revolute -1 -2: negative positionals ==
+is_token_valid('-1') = True
+is_token_valid('-2') = True
+cmd=['jointAdd', 'revolute', '-1', '-2'] | cur='' | choices=[] | prompt='X'
+
+== drivingAdd position 1 2 --posX -t*2: negative expression ==
+is_token_valid('-t*2') = True
+cmd=['drivingAdd', 'position', '1', '2', '--posX', '-t*2'] | cur='' | choices=['--posY']
+
+########## reject_flag_name ##########
+== --posX value pending: '--v' must be rejected ==
+cmd=['drivingAdd', 'position', '1', '2', '--posX'] | cur='' | choices=[] | prompt='value for --posX (1 left)'
+prompt='value for --posX (1 left)' (value for --posX pending)
+is_token_valid('--v') = False (should be False)
+space -> ok=False msg='Invalid token: --v' (should be False, Invalid token)
+cmd=['drivingAdd', 'position', '1', '2', '--posX'] | cur='' | choices=[] | prompt='value for --posX (1 left)'
+
+########## backspace ##########
+== pop_token: jointAdd revolute 1 -> back to 1 ==
+cmd=['jointAdd', 'revolute', '1'] | cur='' | choices=[] | prompt='Y'
+cmd=['jointAdd', 'revolute'] | cur='1' | choices=[] | prompt='X'
+cur='1' (should be '1')
+prompt='X' (should be X again)
+
+########## full_flow ##########
+== full flow: jointAdd revolute 1 2 --vel 1 0 ==
+cmd=['jointAdd', 'revolute', '1', '2', '--vel', '1', '0'] | cur='' | choices=['--name', '--acc']
+choices: ['--name', '--acc'] (should be [--acc], optional)
+space -> ok=True msg=''
+executed: ['jointAdd revolute 1 2 --vel 1 0']
+cmd=[] | cur='' | choices=['load', 'show', 'jointAdd', 'jointEdit', 'jointRemove', 'linkAdd', 'linkEdit', 'linkRemove', 'drivingAdd', 'drivingEdit', 'drivingRemove', 'solve']

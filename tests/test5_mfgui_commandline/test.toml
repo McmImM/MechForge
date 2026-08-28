@@ -1,0 +1,50 @@
+name = "mfgui command-line model"
+description = "GUI command-line token state machine (mfgui_commandLine): completion, positional prompts, flag values, skipping optionals, execution"
+
+[build]
+command = "cmake -S ../.. -B ../../build/debug && cmake --build ../../build/debug --target mf_engine"
+
+[[case]]
+name = "completion"
+run = { command = "python3 run_cases.py completion" }
+validate = { kind = "txt", expected = "expected_completion.txt" }
+
+[[case]]
+name = "positional"
+run = { command = "python3 run_cases.py positional" }
+validate = { kind = "txt", expected = "expected_positional.txt" }
+
+[[case]]
+name = "flag_value"
+run = { command = "python3 run_cases.py flag_value" }
+validate = { kind = "txt", expected = "expected_flag_value.txt" }
+
+[[case]]
+name = "required_flag"
+run = { command = "python3 run_cases.py required_flag" }
+validate = { kind = "txt", expected = "expected_required_flag.txt" }
+
+[[case]]
+name = "skip_optional"
+run = { command = "python3 run_cases.py skip_optional" }
+validate = { kind = "txt", expected = "expected_skip_optional.txt" }
+
+[[case]]
+name = "negative"
+run = { command = "python3 run_cases.py negative" }
+validate = { kind = "txt", expected = "expected_negative.txt" }
+
+[[case]]
+name = "reject_flag_name"
+run = { command = "python3 run_cases.py reject_flag_name" }
+validate = { kind = "txt", expected = "expected_reject_flag_name.txt" }
+
+[[case]]
+name = "backspace"
+run = { command = "python3 run_cases.py backspace" }
+validate = { kind = "txt", expected = "expected_backspace.txt" }
+
+[[case]]
+name = "full_flow"
+run = { command = "python3 run_cases.py full_flow" }
+validate = { kind = "txt", expected = "expected_full_flow.txt" }

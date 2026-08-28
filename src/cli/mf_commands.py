@@ -9,7 +9,8 @@ import json
 from dataclasses import dataclass
 import shlex
 import argparse
-from typing import Any, cast
+from enum import Enum
+from typing import Any, Sequence, cast
 from collections.abc import Callable, Iterator
 
 import cmd2
@@ -535,6 +536,16 @@ JOINT_TYPES = {
     "free": JointType.Free,
 }
 
+# Human-readable descriptions for the joint TYPE picker. Single source of
+# truth for what the GUI shows next to each subcommand name.
+JOINT_TYPE_HELP = {
+    "ground": "grounded joint (bolted to the ground)",
+    "fixed": "fixed joint",
+    "revolute": "revolute joint",
+    "prismatic": "prismatic joint (slides along an axis)",
+    "free": "free joint",
+}
+
 JOINT_PARSERS = {
     "ground": lambda: joint_parser_factory(with_pos=False, extra=grounded_extra)(),
     "fixed": lambda: joint_parser_factory()(),
@@ -549,10 +560,65 @@ DRIVING_TYPES = {
     "distance": DrivingType.Distance,
 }
 
+# Human-readable descriptions for the driving TYPE picker.
+DRIVING_TYPE_HELP = {
+    "position": "drive a joint's position with expressions",
+    "angle": "drive a joint's angle with expressions",
+    "distance": "drive the distance between two joints",
+}
+
 DRIVING_PARSERS = {
     "position": lambda: driving_parser_factory(position_extra)(),
     "angle": lambda: driving_parser_factory(angle_extra)(),
     "distance": lambda: driving_parser_factory(distance_extra)(),
+}
+
+
+# Subcommand registries, keyed by the top-level parser object. A command with
+# subcommands only needs: a registry dict + a help map + one call here. This
+# module-level table avoids attaching custom attributes to argparse's private
+# _SubParsersAction (which Pyright rejects and is fragile across versions).
+SUBPARSER_REGISTRIES: dict[
+    cmd2.Cmd2ArgumentParser,
+    tuple[dict[str, Callable[[], cmd2.Cmd2ArgumentParser]], dict[str, str]],
+] = {}
+
+
+def _register_subcommands(
+    parser: cmd2.Cmd2ArgumentParser,
+    registry: dict[str, Callable[[], cmd2.Cmd2ArgumentParser]],
+    help_map: dict[str, str],
+) -> None:
+    """Register a subcommand registry + help map for a top-level parser.
+
+    Stored in the module-level SUBPARSER_REGISTRIES table (keyed by parser),
+    so _resolve_parser can discover subcommands generically without touching
+    argparse's private _SubParsersAction internals.
+    """
+    SUBPARSER_REGISTRIES[parser] = (registry, help_map)
+
+
+# Attach the subcommand registries. A command with subcommands only needs: a
+# registry dict + a help map + one call here.
+_register_subcommands(jointAdd_parser, JOINT_PARSERS, JOINT_TYPE_HELP)
+_register_subcommands(drivingAdd_parser, DRIVING_PARSERS, DRIVING_TYPE_HELP)
+
+
+# Command name -> top-level parser. Replaces globals()[f"{cmd}_parser"] so
+# adding a command only means adding one entry here (no name-mangling magic).
+PARSERS = {
+    "load": load_parser,
+    "show": show_parser,
+    "jointAdd": jointAdd_parser,
+    "jointEdit": jointEdit_parser,
+    "jointRemove": jointRemove_parser,
+    "linkAdd": linkAdd_parser,
+    "linkEdit": linkEdit_parser,
+    "linkRemove": linkRemove_parser,
+    "drivingAdd": drivingAdd_parser,
+    "drivingEdit": drivingEdit_parser,
+    "drivingRemove": drivingRemove_parser,
+    "solve": solve_parser,
 }
 
 
@@ -764,7 +830,7 @@ def _cmd_driving_remove(client: MechForgeCore, argv: list[str]) -> CommandResult
     )
 
 
-COMMANDS = {
+NORMAL_COMMANDS = {
     "load": _cmd_load,
     "show": _cmd_show,
     "jointAdd": _cmd_joint_add,
@@ -778,6 +844,12 @@ COMMANDS = {
     "drivingRemove": _cmd_driving_remove,
 }
 
+STREAMING_COMMANDS = {
+    "solve": None,  # handled by run_solve() instead of run_command()
+}
+
+COMMANDS = {**NORMAL_COMMANDS, **STREAMING_COMMANDS}
+
 
 def run_command(client: MechForgeCore, line: str) -> CommandResult:
     """Parse a text command line and execute it against a client.
@@ -789,12 +861,12 @@ def run_command(client: MechForgeCore, line: str) -> CommandResult:
     tokens = shlex.split(line)
     if not tokens:
         return CommandResult(ok=False, error="empty command")
-    if tokens[0] == "solve":
+    if tokens[0] in STREAMING_COMMANDS.keys():
         # solve streams one line per step; handled by run_solve(), not here.
         return CommandResult(
             ok=False, error="solve is streaming; use run_solve() instead"
         )
-    handler = COMMANDS.get(tokens[0])
+    handler = NORMAL_COMMANDS.get(tokens[0])
     if handler is None:
         return CommandResult(ok=False, error=f"unknown command: {tokens[0]}")
     try:
@@ -823,3 +895,234 @@ def run_solve(client: MechForgeCore, line: str) -> Iterator[dict]:
         tolerance=args.tolerance,
         solveLevel=SolveLevel(args.solveLevel),
     )
+
+
+# --- prompt sequences (AutoCAD-style command line) --------------------------
+# build_prompts(tokens) returns the REMAINING prompts for a command given the
+# tokens confirmed so far. The GUI command line calls it after every
+# confirmation; when it returns [] the command is complete and can be executed.
+# Subcommand resolution (jointAdd/drivingAdd TYPE) happens here, so the GUI
+# never needs to know about JOINT_PARSERS / DRIVING_PARSERS.
+
+
+class PromptKind(Enum):
+    """What a prompt expects from the user.
+
+    - REQUIRED: the user must type a value (normal color)
+    - OPTIONAL: the user may type a value or skip (GUI renders dimmer)
+    - CHOICE:   the user picks one of the listed options (cannot skip, but
+                it is not free text either)
+    """
+
+    REQUIRED = "required"
+    OPTIONAL = "optional"
+    CHOICE = "choice"
+
+
+def _resolve_parser(
+    tokens: list[str],
+) -> tuple[cmd2.Cmd2ArgumentParser, list[tuple[str, str]], bool]:
+    """(parser, type_choices, subcommand_confirmed) for a command.
+
+    Generic: looks up the top-level parser in PARSERS, then scans its actions
+    for a _SubParsersAction. If one exists and the TYPE token is a registered
+    subcommand, returns the sub-parser (subcommand_confirmed=True); otherwise
+    returns the top-level parser with the (name, desc) choice list from the
+    registry's help map. Adding a new subcommand command needs no change here
+    -- only a registry + help map + _register_subcommands call.
+    """
+    cmd = tokens[0]
+    parser = PARSERS[cmd]
+    # Generic subcommand discovery: look up the parser in the module-level
+    # registry table (no argparse private-attribute poking).
+    entry = SUBPARSER_REGISTRIES.get(parser, None)
+    if entry is not None:
+        registry, help_map = entry
+        if len(tokens) >= 2 and tokens[1] in registry:
+            return registry[tokens[1]](), [], True
+        return parser, list(help_map.items()), False
+    return parser, [], False
+
+
+def _display_option(option_strings: Sequence[str]) -> str:
+    """Prefer the long flag (--joints) over the short one (-j)."""
+    for opt in option_strings:
+        if opt.startswith("--"):
+            return opt
+    return option_strings[0]
+
+
+def _prompts_from_parser(
+    parser: cmd2.Cmd2ArgumentParser,
+    type_choices: list[tuple[str, str]],
+    consumed: int = 0,
+    supplied_flags: set[str] | None = None,
+) -> list[tuple[str, str, PromptKind]]:
+    """Introspect an argparse parser into (label, help, kind) prompt triples.
+
+    kind is a PromptKind:
+      - REQUIRED -> the user must type a value
+      - OPTIONAL -> the user may type a value or skip (GUI renders dimmer)
+      - CHOICE   -> the user picks one of the listed options (cannot skip)
+
+    consumed is how many positional values the confirmed tokens already
+    supply; those positionals are skipped (their prompts are not returned).
+    supplied_flags is the set of option strings already present in the
+    confirmed tokens; those optionals are skipped too.
+
+    - subparsers (jointAdd/drivingAdd TYPE) -> one ("name", desc, CHOICE)
+      triple per option, so the GUI can render a picker directly. The option
+      list comes from the caller (JOINT_TYPE_HELP / DRIVING_TYPE_HELP), NOT
+      from action.choices: cmd2 registers subcommands via as_subcommand_to,
+      which never fills the _SubParsersAction.choices dict.
+    - optionals -> their first option string (e.g. "--posX", "--name"),
+      kind = REQUIRED if action.required else OPTIONAL.
+    - positionals -> metavar or dest uppercased (e.g. "X", "JOINTA"), REQUIRED.
+    -h/--help is filtered out: it is argparse's built-in, not a real prompt.
+    """
+    prompts: list[tuple[str, str, PromptKind]] = []
+    positional_seen = 0
+    for action in parser._actions:
+        if isinstance(action, argparse._HelpAction):
+            continue  # argparse's built-in -h/--help, not a real prompt
+        if type_choices and isinstance(action, argparse._SubParsersAction):
+            for name, desc in type_choices:
+                prompts.append((name, desc, PromptKind.CHOICE))
+        elif action.option_strings:
+            if supplied_flags and any(
+                opt in supplied_flags for opt in action.option_strings
+            ):
+                continue  # already supplied by a confirmed token
+            kind = PromptKind.REQUIRED if action.required else PromptKind.OPTIONAL
+            prompts.append(
+                (_display_option(action.option_strings), action.help or "", kind)
+            )
+        else:
+            # metavar may be a tuple (e.g. ("X", "Y") for nargs=2); flatten it.
+            if positional_seen < consumed:
+                positional_seen += 1
+                continue  # already supplied by a confirmed token
+            metavar = action.metavar
+            if isinstance(metavar, tuple):
+                label = " ".join(metavar)
+            else:
+                label = metavar or action.dest.upper()
+            prompts.append((label, action.help or "", PromptKind.REQUIRED))
+    return prompts
+
+
+def _count_consumed_positionals(tokens: list[str], subcommand_confirmed: bool) -> int:
+    """How many positional values the confirmed tokens already supply.
+
+    tokens[0] is the command name; tokens[1] is the subcommand name when
+    subcommand_confirmed. The remaining tokens are walked in order: a plain
+    value consumes one positional, a --flag consumes itself plus its value
+    (so neither counts as a positional).
+    """
+    rest = tokens[2:] if subcommand_confirmed else tokens[1:]
+    parser, _, _ = _resolve_parser(tokens)
+    flag_values: dict[str, int] = {}
+    for action in parser._actions:
+        if action.option_strings:
+            n = action.nargs if isinstance(action.nargs, int) else 1
+            for opt in action.option_strings:
+                flag_values[opt] = n
+    consumed = 0
+    i = 0
+    while i < len(rest):
+        if rest[i].startswith("-"):
+            i += 1 + flag_values.get(rest[i], 1)
+        else:
+            consumed += 1
+            i += 1
+    return consumed
+
+
+def _collect_supplied_flags(tokens: list[str]) -> set[str]:
+    """Option strings already present in the confirmed tokens."""
+    return {tok for tok in tokens if tok.startswith("-")}
+
+
+def build_prompts(tokens: list[str]) -> list[tuple[str, str, PromptKind]]:
+    """Remaining (label, help, kind) prompts for the tokens confirmed so far.
+
+    Empty list means the command is complete: the caller can join the tokens
+    and execute the line. Unknown command -> empty list (the caller decides
+    how to surface it).
+
+    kind is a PromptKind:
+      - REQUIRED: the user must type a value (normal color)
+      - OPTIONAL: the user may type a value or skip (GUI renders dimmer)
+      - CHOICE:   the user picks one of the listed options (GUI renders a
+                  picker; the label is the option name, help is its desc)
+    """
+    if not tokens:
+        # No tokens yet: offer every command name as a CHOICE so the GUI
+        # can render command-name completion.
+        return [(name, "", PromptKind.CHOICE) for name in COMMANDS]
+    cmd = tokens[0]
+    if cmd not in COMMANDS:
+        return []
+    parser, type_choices, subcommand_confirmed = _resolve_parser(tokens)
+    consumed = _count_consumed_positionals(tokens, subcommand_confirmed)
+    supplied = _collect_supplied_flags(tokens)
+    return _prompts_from_parser(parser, type_choices, consumed, supplied)
+
+
+def is_flag(token: str, cmd: list[str]) -> bool:
+    if not cmd or cmd[0] not in PARSERS.keys():
+        return False
+    parser, _, _ = _resolve_parser(cmd)
+    known_flags = {
+        opt
+        for action in parser._actions
+        if action.option_strings
+        for opt in action.option_strings
+    }
+    return token in known_flags
+
+
+def flag_value_pending(tokens: list[str]) -> tuple[str, int] | None:
+    """If the last token is a flag that expects a value, return (flag, remaining args count).
+    Otherwise return None. This is used to determine if the user has just typed a flag and is expected to provide a value next.
+    """
+    if not tokens or tokens[0] not in PARSERS.keys():
+        return None
+
+    parser, _, _ = _resolve_parser(tokens)
+    known_flags = {
+        opt
+        for action in parser._actions
+        if action.option_strings
+        for opt in action.option_strings
+    }
+
+    # find last flag in tokens
+    last_idx = None
+    last_flag = None
+    for i, token in enumerate(tokens[1:], start=1):
+        if token in known_flags:
+            last_idx = i
+            last_flag = token
+
+    # if not found, return None
+    if last_flag is None:
+        return None
+
+    # calculate how many values are expected for this flag
+    for action in parser._actions:
+        if last_flag in action.option_strings:
+            nargs = action.nargs
+            if nargs == 0:
+                # store_true / store_false flags don't expect a value
+                return None
+            n = nargs if isinstance(nargs, int) else 1
+            # last_idx can't be None here because we found a last_flag.
+            # This assertion is for the annoying type checking.
+            assert last_idx is not None
+            supplied = len(tokens) - 1 - last_idx
+            remaining = n - supplied
+            if remaining > 0:
+                return (last_flag, remaining)
+            else:
+                return None

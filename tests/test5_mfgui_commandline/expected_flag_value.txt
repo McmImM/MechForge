@@ -1,0 +1,8 @@
+== jointAdd revolute 1 2 --vel: two values ==
+cmd=['jointAdd', 'revolute', '1', '2'] | cur='' | choices=['--name', '--vel', '--acc']
+cmd=['jointAdd', 'revolute', '1', '2', '--vel'] | cur='' | choices=[] | prompt='value for --vel (2 left)'
+prompt='value for --vel (2 left)' (should be value for --vel (2 left))
+cmd=['jointAdd', 'revolute', '1', '2', '--vel', '1'] | cur='' | choices=[] | prompt='value for --vel (1 left)'
+prompt='value for --vel (1 left)' (should be value for --vel (1 left))
+cmd=['jointAdd', 'revolute', '1', '2', '--vel', '1', '0'] | cur='' | choices=['--name', '--acc']
+choices: ['--name', '--acc'] (should be --acc only)

@@ -1,0 +1,9 @@
+== command-name completion ==
+cmd=[] | cur='j' | choices=['jointAdd', 'jointEdit', 'jointRemove']
+choices: ['jointAdd', 'jointEdit', 'jointRemove']
+
+== confirm jointAdd, then TYPE choices ==
+space -> ok=True msg=''
+cmd=['jointAdd'] | cur='' | choices=['ground', 'fixed', 'revolute', 'prismatic', 'free']
+choices: ['ground', 'fixed', 'revolute', 'prismatic', 'free']
+choice=0 (auto-selected first CHOICE)
