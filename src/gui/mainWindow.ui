@@ -58,7 +58,7 @@
          </sizepolicy>
         </property>
        </widget>
-       <widget class="QLineEdit" name="cmdInput"/>
+       <widget class="MFGuiCmdInput" name="cmdInput"/>
        <widget class="QTabWidget" name="tabWidget">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -70,9 +70,6 @@
          <number>0</number>
         </property>
         <widget class="MFGuiHints" name="hints">
-         <property name="flow">
-          <enum>QListView::Flow::LeftToRight</enum>
-         </property>
          <attribute name="title">
           <string>Hints</string>
          </attribute>
@@ -163,8 +160,13 @@
  <customwidgets>
   <customwidget>
    <class>MFGuiHints</class>
-   <extends>QListWidget</extends>
+   <extends>QWidget</extends>
    <header>mfgui_hints</header>
+  </customwidget>
+  <customwidget>
+   <class>MFGuiCmdInput</class>
+   <extends>QLineEdit</extends>
+   <header>mfgui_cmdInput</header>
   </customwidget>
  </customwidgets>
  <resources/>

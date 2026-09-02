@@ -850,6 +850,21 @@ STREAMING_COMMANDS = {
 
 COMMANDS = {**NORMAL_COMMANDS, **STREAMING_COMMANDS}
 
+COMMAND_HELP = {
+    "load": "load a mechanism from a JSON file",
+    "show": "show the current mechanism",
+    "jointAdd": "add a joint (type-specific subcommand)",
+    "jointEdit": "edit a joint",
+    "jointRemove": "remove a joint",
+    "linkAdd": "add a link between two joints",
+    "linkEdit": "edit a link",
+    "linkRemove": "remove a link",
+    "drivingAdd": "add a driving constraint (type-specific subcommand)",
+    "drivingEdit": "edit a driving constraint",
+    "drivingRemove": "remove a driving constraint",
+    "solve": "solve the mechanism, streaming each step",
+}
+
 
 def run_command(client: MechForgeCore, line: str) -> CommandResult:
     """Parse a text command line and execute it against a client.
@@ -1059,7 +1074,9 @@ def build_prompts(tokens: list[str]) -> list[tuple[str, str, PromptKind]]:
     if not tokens:
         # No tokens yet: offer every command name as a CHOICE so the GUI
         # can render command-name completion.
-        return [(name, "", PromptKind.CHOICE) for name in COMMANDS]
+        return [
+            (name, COMMAND_HELP.get(name, ""), PromptKind.CHOICE) for name in COMMANDS
+        ]
     cmd = tokens[0]
     if cmd not in COMMANDS:
         return []

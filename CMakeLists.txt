@@ -41,6 +41,7 @@ set(MF_PYTHON_MODULES
     ${CMAKE_SOURCE_DIR}/src/gui/mf_gui.py
     ${CMAKE_SOURCE_DIR}/src/gui/mfgui_hints.py
     ${CMAKE_SOURCE_DIR}/src/gui/mfgui_commandLine.py
+    ${CMAKE_SOURCE_DIR}/src/gui/mfgui_cmdInput.py
     ${CMAKE_SOURCE_DIR}/src/server/mf_server.py
     ${CMAKE_SOURCE_DIR}/src/server/mf_remote.py
     ${CMAKE_SOURCE_DIR}/src/mcp/mf_mcp.py
